@@ -1,0 +1,76 @@
+/* Головний фон та шрифт */
+.App {
+  text-align: center;
+  background-color: #121212; /* Темна тема */
+  min-height: 100vh;
+  color: white;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 0; /* Прибираємо головний відступ */
+}
+
+/* Час оновлення під заголовком */
+.update-time {
+  color: #888;
+  margin-bottom: 40px;
+  font-size: 1rem;
+}
+
+/* Контейнер, щоб картки стояли в ряд */
+.crypto-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 25px;
+}
+
+/* Стиль самої картки */
+.crypto-card {
+  background-color: #1e1e1e;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  width: 260px;
+  border-bottom: 5px solid #333; /* Початкова рамка знизу */
+  transition: transform 0.3s ease;
+}
+
+.crypto-card:hover {
+  transform: translateY(-10px); /* Ефект підйому при наведенні */
+}
+
+/* Кольори для кожної валюти */
+.btc { border-color: #f7931a; } /* Помаранчевий Bitcoin */
+.eth { border-color: #627eea; } /* Синій Ethereum */
+.sol { border-color: #14f195; } /* Зелений Solana */
+
+h2 {
+  color: #aaa;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.price {
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+/* Робимо колір цифр відповідним до валюти */
+
+/* Стиль для ціни за замовчуванням (білий) */
+.crypto-card .price {
+    color: #ffffff !important;
+    transition: color 0.5s ease;
+    font-weight: bold;
+}
+
+/* Пріоритет для Зеленого (ріст) */
+.crypto-card .price.up {
+    color: #2ecc71 !important;
+}
+
+/* Пріоритет для Червоного (падіння) */
+.crypto-card .price.down {
+    color: #e74c3c !important;
+}

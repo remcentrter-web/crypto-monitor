@@ -1,0 +1,49 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 50px;
+  background-color: #1a1a1a;
+  border-bottom: 2px solid #f7931a; /* Ось твій золотистий колір лінії */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.nav-logo {
+  font-size: 22px;
+  font-weight: 800;
+  color: #f7931a; /* Золотистий колір тексту */
+  letter-spacing: 1px;
+}
+
+.user-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #2a2a2a;
+  padding: 8px 18px;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.user-block:hover {
+  background: #333;
+}
+
+.user-name {
+  color: white;
+  font-weight: 500;
+}
+
+.user-avatar {
+  width: 35px;
+  height: 35px;
+  background: linear-gradient(45deg, #f7931a, #ffab40); /* Золотистий градієнт */
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: black;
+  font-weight: bold;
+}
