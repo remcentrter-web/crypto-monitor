@@ -74,3 +74,54 @@ h2 {
 .crypto-card .price.down {
     color: #e74c3c !important;
 }
+/* Нові секції */
+.popular-section {
+    margin-top: 50px;
+    padding-bottom: 50px;
+}
+
+.section-title {
+    color: white;
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+}
+
+/* Сітка для 8 монет: 4 в ряд */
+.popular-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 колонки */
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Стиль для менших карток */
+.small-card {
+    padding: 20px;
+    width: auto; /* Щоб вписувались у сітку */
+}
+
+.small-card h2 {
+    font-size: 0.9rem;
+}
+
+.small-card .price {
+    font-size: 1.4rem;
+}
+
+/* Стрілочки */
+.arrow {
+    font-size: 0.8em;
+    margin-right: 5px;
+}
+
+/* Додаткові кольори рамок для нових монет */
+.bnb { border-color: #f3ba2f; }
+.xrp { border-color: #23292f; }
+.ada { border-color: #0033ad; }
+.doge { border-color: #c2a633; }
+.trx { border-color: #ef0027; }
+.dot { border-color: #e6007a; }
+.ltc { border-color: #345d9d; }
+.matic { border-color: #8247e5; }
