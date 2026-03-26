@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import './Navbar.css';
+import CoinModal from './components/CoinModal';
 
 function App() {
   const [prices, setPrices] = useState({});
   const [lastUpdated, setLastUpdated] = useState('');
   const prevPricesRef = useRef({});
-
+const [selectedCoin, setSelectedCoin] = useState(null);
   // 1. Завантаження обраного з пам'яті
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('myFavorites');
@@ -20,25 +21,29 @@ function App() {
 
   useEffect(() => {
     const fetchPrices = () => {
-      // Список усіх 11 монет (3 основні + 8 додаткових)
       const symbols = [
         'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 
         'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 
         'TRXUSDT', 'DOTUSDT', 'LTCUSDT', 'MATICUSDT'
       ];
       
-      Promise.all(
-        symbols.map(s => fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${s}`).then(r => r.json()))
-      ).then(data => {
-        const results = {};
-        data.forEach(item => {
-          const coinName = item.symbol.replace('USDT', '');
-          results[coinName] = parseFloat(item.price).toFixed(coinName === 'BTC' || coinName === 'ETH' ? 2 : 4);
-        });
+      // Один запит на всі монети — отримуємо ціну + відсотки
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`)
+        .then(r => r.json())
+        .then(data => {
+          const results = {};
+          data.forEach(item => {
+            const coinName = item.symbol.replace('USDT', '');
+            results[coinName] = {
+              price: parseFloat(item.lastPrice).toFixed(coinName === 'BTC' || coinName === 'ETH' ? 2 : 4),
+              change: parseFloat(item.priceChangePercent).toFixed(2)
+            };
+          });
 
-        setPrices(results);
-        setLastUpdated(new Date().toLocaleTimeString('uk-UA', { timeZone: 'Europe/Kyiv' }));
-      }).catch(err => console.error("Помилка API:", err));
+          setPrices(results);
+          setLastUpdated(new Date().toLocaleTimeString('uk-UA', { timeZone: 'Europe/Kyiv' }));
+        })
+        .catch(err => console.error("Помилка API:", err));
     };
 
     fetchPrices();
@@ -46,6 +51,7 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Це залишаємо для порівняння цін (пульсації)
   useEffect(() => {
     prevPricesRef.current = prices;
   }, [prices]);
@@ -58,26 +64,55 @@ function App() {
 
   // Допоміжна функція для створення карток
   const renderCard = (id, name, isSmall = false) => {
-    const currentPrice = prices[id];
-    const prevPrice = prevPricesRef.current[id];
+    const coinData = prices[id]; // Отримуємо дані про монету
+    const currentPrice = coinData?.price;
+    const changePercent = coinData?.change;
+    
+    // Порівнюємо ціну з попередньою для анімації спалаху
+    const prevPriceData = prevPricesRef.current[id];
+    const prevPrice = prevPriceData?.price;
+    
     const isUp = parseFloat(currentPrice) >= parseFloat(prevPrice);
+    const isPositiveChange = parseFloat(changePercent) >= 0;
     const isFavorite = favorites.includes(id);
 
+    // Визначаємо клас для блимання (якщо ціна змінилася)
+    const flashClass = (currentPrice && prevPrice && currentPrice !== prevPrice) 
+      ? (isUp ? 'up-flash' : 'down-flash') 
+      : '';
+
     return (
-      <div key={id} className={`crypto-card ${id.toLowerCase()} ${isSmall ? 'small-card' : ''}`}>
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0 }}>{name} ({id})</h2>
+<div 
+  key={id} 
+  className={`crypto-card ${id.toLowerCase()} ${isSmall ? 'small-card' : ''} ${flashClass}`}
+  onClick={() => setSelectedCoin(id)} 
+  style={{ cursor: 'pointer' }}
+>        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: isSmall ? '1rem' : '1.5rem' }}>{name} ({id})</h2>
           <button 
-            onClick={() => toggleFavorite(id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite(id);
+            }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: isFavorite ? '#f7931a' : '#444' }}
           >
             {isFavorite ? '★' : '☆'}
           </button>
         </div>
-        <p className={`price ${isUp ? 'up' : 'down'}`}>
-          <span className="arrow">{isUp ? '▲' : '▼'}</span>
-          ${currentPrice || '...'}
-        </p>
+        
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '10px' }}>
+          <p className={`price ${isUp ? 'up' : 'down'}`} style={{ margin: 0, fontSize: isSmall ? '1.1rem' : '1.4rem' }}>
+            <span className="arrow">{isUp ? '▲' : '▼'}</span>
+            ${currentPrice || '...'}
+          </p>
+          
+          {/* Відображення відсотків */}
+          {changePercent && (
+            <span className={isPositiveChange ? 'green-text' : 'red-text'} style={{ fontSize: '0.9rem' }}>
+              {isPositiveChange ? '+' : ''}{changePercent}%
+            </span>
+          )}
+        </div>
       </div>
     );
   };
@@ -102,6 +137,13 @@ function App() {
         </div>
       )}
 
+      {selectedCoin && (
+        <CoinModal 
+          coinId={selectedCoin} 
+          data={prices[selectedCoin]} 
+          onClose={() => setSelectedCoin(null)} 
+        />
+      )}
       <h1>Топ-3 криптовалюти на сьогодні</h1>
       <p className="update-time">Останнє оновлення: {lastUpdated}</p>
       

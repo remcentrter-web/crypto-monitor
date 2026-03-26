@@ -125,3 +125,25 @@ h2 {
 .dot { border-color: #e6007a; }
 .ltc { border-color: #345d9d; }
 .matic { border-color: #8247e5; }
+/* Кольори для відсотків */
+.green-text { color: #00ff88 !important; font-weight: bold; }
+.red-text { color: #ff4d4d !important; font-weight: bold; }
+
+/* Анімація спалаху (пульсація) */
+@keyframes flash-green {
+  0% { background-color: rgba(0, 255, 136, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: rgba(255, 77, 77, 0.3); }
+  100% { background-color: transparent; }
+}
+
+/* Класи, які React буде додавати автоматично */
+.up-flash { animation: flash-green 0.8s ease-out; }
+.down-flash { animation: flash-red 0.8s ease-out; }
+
+.crypto-card {
+  transition: background-color 0.5s ease;
+}
