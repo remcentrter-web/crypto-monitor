@@ -57,3 +57,43 @@
   color: white; outline: none;
   width: 100%; font-size: 1rem;
 }
+/* Контейнер для графіка */
+.modal-chart-container {
+  width: 100%;
+  height: 180px; /* Висота графіка */
+  margin: 20px 0;
+  background: rgba(255, 255, 255, 0.03); /* Легкий фон під графіком */
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Коригування відступів для ціни */
+.modal-price-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+/* Стиль для скелетона (заглушки) */
+.skeleton-chart {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.03) 25%, 
+    rgba(255, 255, 255, 0.08) 50%, 
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Анімація переливання */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

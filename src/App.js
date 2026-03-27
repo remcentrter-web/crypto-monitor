@@ -123,7 +123,7 @@ const [selectedCoin, setSelectedCoin] = useState(null);
         <div className="nav-logo">CRYPTO MONITOR</div>
         <div className="user-block" onClick={() => alert("Профіль Максим")}>
           <span className="user-name">Максим</span>
-          <div className="user-avatar">М</div>
+          <div className="user-avatar">Д</div>
         </div>
       </nav>
 
