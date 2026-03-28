@@ -7,50 +7,72 @@ function App() {
   const [prices, setPrices] = useState({});
   const [lastUpdated, setLastUpdated] = useState('');
   const prevPricesRef = useRef({});
-const [selectedCoin, setSelectedCoin] = useState(null);
-  // 1. Завантаження обраного з пам'яті
+  const [selectedCoin, setSelectedCoin] = useState(null);
+  
+  // --- НОВІ СТАНИ ДЛЯ ТОП-50 ТА ПОШУКУ ---
+  const [coins, setCoins] = useState([]); 
+  const [searchQuery, setSearchQuery] = useState(''); 
+  // ---------------------------------------
+
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('myFavorites');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Автозбереження зірочок
   useEffect(() => {
     localStorage.setItem('myFavorites', JSON.stringify(favorites));
   }, [favorites]);
 
+  // ОНОВЛЕНИЙ FETCH ДЛЯ ТОП-50 З COINGECKO
   useEffect(() => {
-    const fetchPrices = () => {
-      const symbols = [
-        'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 
-        'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 
-        'TRXUSDT', 'DOTUSDT', 'LTCUSDT', 'MATICUSDT'
-      ];
-      
-      // Один запит на всі монети — отримуємо ціну + відсотки
-      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`)
-        .then(r => r.json())
-        .then(data => {
-          const results = {};
-          data.forEach(item => {
-            const coinName = item.symbol.replace('USDT', '');
-            results[coinName] = {
-              price: parseFloat(item.lastPrice).toFixed(coinName === 'BTC' || coinName === 'ETH' ? 2 : 4),
-              change: parseFloat(item.priceChangePercent).toFixed(2)
-            };
-          });
+   const fetchTop50 = async () => {
+    try {
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false&_t=${Date.now()}`
+      );
+      const data = await response.json();
 
-          setPrices(results);
-          setLastUpdated(new Date().toLocaleTimeString('uk-UA', { timeZone: 'Europe/Kyiv' }));
-        })
-        .catch(err => console.error("Помилка API:", err));
-    };
+      if (Array.isArray(data)) {
+        const results = {};
+        data.forEach(item => {
+          const symbol = item.symbol.toUpperCase();
+          
+          // НОВА ЛОГІКА ЦІНИ: якщо менше 1 цента (0.01) — показуємо 6 цифр, інакше стандартно 2 або 4
+          const formattedPrice = item.current_price < 0.01 
+            ? item.current_price.toFixed(6) 
+            : item.current_price.toFixed(item.current_price > 1 ? 2 : 4);
 
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 5000);
+          results[symbol] = {
+          price: formattedPrice,
+          change: item.price_change_percentage_24h?.toFixed(2),
+          name: item.name,
+          image: item.image,
+          // --- НОВІ ДАНІ ДЛЯ МОДАЛКИ ---
+          rank: item.market_cap_rank,
+          marketCap: item.market_cap,
+          high24h: item.high_24h,
+          low24h: item.low_24h,
+          volume: item.total_volume,
+          ath: item.ath
+        };
+        });
+
+        setPrices(prev => {
+          prevPricesRef.current = prev;
+          return results;
+        });
+        
+        setCoins(data);
+        setLastUpdated(new Date().toLocaleTimeString('uk-UA', { timeZone: 'Europe/Kyiv' }));
+      }
+    } catch (err) {
+      console.error("Помилка CoinGecko:", err);
+    }
+  };
+    fetchTop50();
+    const interval = setInterval(fetchTop50, 30000); 
     return () => clearInterval(interval);
   }, []);
-
   // Це залишаємо для порівняння цін (пульсації)
   useEffect(() => {
     prevPricesRef.current = prices;
@@ -62,13 +84,13 @@ const [selectedCoin, setSelectedCoin] = useState(null);
     );
   };
 
-  // Допоміжна функція для створення карток
+ // Допоміжна функція для створення карток з логотипами
   const renderCard = (id, name, isSmall = false) => {
-    const coinData = prices[id]; // Отримуємо дані про монету
+    const coinData = prices[id]; 
     const currentPrice = coinData?.price;
     const changePercent = coinData?.change;
+    const coinImage = coinData?.image; // Отримуємо посилання на картинку
     
-    // Порівнюємо ціну з попередньою для анімації спалаху
     const prevPriceData = prevPricesRef.current[id];
     const prevPrice = prevPriceData?.price;
     
@@ -76,19 +98,34 @@ const [selectedCoin, setSelectedCoin] = useState(null);
     const isPositiveChange = parseFloat(changePercent) >= 0;
     const isFavorite = favorites.includes(id);
 
-    // Визначаємо клас для блимання (якщо ціна змінилася)
     const flashClass = (currentPrice && prevPrice && currentPrice !== prevPrice) 
       ? (isUp ? 'up-flash' : 'down-flash') 
       : '';
 
     return (
-<div 
-  key={id} 
-  className={`crypto-card ${id.toLowerCase()} ${isSmall ? 'small-card' : ''} ${flashClass}`}
-  onClick={() => setSelectedCoin(id)} 
-  style={{ cursor: 'pointer' }}
->        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: isSmall ? '1rem' : '1.5rem' }}>{name} ({id})</h2>
+      <div 
+        key={id} 
+        className={`crypto-card ${id.toLowerCase()} ${isSmall ? 'small-card' : ''} ${flashClass}`}
+        onClick={() => setSelectedCoin(id)} 
+        style={{ cursor: 'pointer' }}
+      >
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            
+            {/* Виводимо логотип монети */}
+            {coinImage && (
+              <img 
+                src={coinImage} 
+                alt={id} 
+                style={{ width: isSmall ? '24px' : '32px', borderRadius: '50%' }} 
+              />
+            )}
+            
+            <h2 style={{ margin: 0, fontSize: isSmall ? '1rem' : '1.5rem' }}>
+             {name.length > 18 ? name.substring(0, 18) + '...' : name}
+            </h2>
+          </div>
+
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -106,7 +143,6 @@ const [selectedCoin, setSelectedCoin] = useState(null);
             ${currentPrice || '...'}
           </p>
           
-          {/* Відображення відсотків */}
           {changePercent && (
             <span className={isPositiveChange ? 'green-text' : 'red-text'} style={{ fontSize: '0.9rem' }}>
               {isPositiveChange ? '+' : ''}{changePercent}%
@@ -148,13 +184,13 @@ const [selectedCoin, setSelectedCoin] = useState(null);
       <p className="update-time">Останнє оновлення: {lastUpdated}</p>
       
       <div className="crypto-container">
-        {renderCard('BTC', 'Bitcoin')}
+       {renderCard('BTC', 'Bitcoin')}
         {renderCard('ETH', 'Ethereum')}
-        {renderCard('SOL', 'Solana')}
+          {renderCard('SOL', 'Solana')}     
       </div>
 
       <div className="popular-section">
-        <h2 className="section-title">8 популярних криптовалют</h2>
+        <h2 className="section-title">Популярні блокчейн-проекти 2026 року</h2>
         <div className="popular-grid">
           {renderCard('BNB', 'Binance Coin', true)}
           {renderCard('XRP', 'Ripple', true)}
@@ -163,7 +199,14 @@ const [selectedCoin, setSelectedCoin] = useState(null);
           {renderCard('TRX', 'TRON', true)}
           {renderCard('DOT', 'Polkadot', true)}
           {renderCard('LTC', 'Litecoin', true)}
-          {renderCard('MATIC', 'Polygon', true)}
+          {renderCard('LINK', 'Chainlink', true)}
+        </div>
+      </div>
+      {/* НОВА СЕКЦІЯ: ВЕСЬ РИНОК */}
+      <div className="popular-section">
+        <h2 className="section-title">Весь ринок (Топ-50)</h2>
+        <div className="popular-grid">
+          {coins.map(coin => renderCard(coin.symbol.toUpperCase(), coin.name, true))}
         </div>
       </div>
     </div>

@@ -26,6 +26,10 @@ ChartJS.register(
 );
 
 const CoinModal = ({ coinId, data, onClose }) => {
+  // Функція для форматування великих чисел (наприклад, 1,234,567)
+  const formatNumber = (num) => {
+    return num ? new Intl.NumberFormat('en-US').format(num) : '---';
+  };
   const [usdAmount, setUsdAmount] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 const [chartHistory, setChartHistory] = useState([]);
@@ -100,17 +104,20 @@ labels: chartHistory.map((_, index) => index),
         <button className="close-button" onClick={onClose}>&times;</button>
         
         <div className="modal-header">
-          <img 
-            src={`https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${coinId.toLowerCase()}.png`}
-            alt={coinId}
-            className="modal-icon"
-          />
+          {data?.image && (
+            <img 
+              src={data.image} 
+              alt={coinId}
+              className="modal-icon"
+              style={{ width: '40px', borderRadius: '50%' }}
+            />
+          )}
           <h2>{coinId} ДЕТАЛІ</h2>
         </div>
 
         <div className="modal-price-info">
           <p className="modal-current-price" style={{ color: priceColor }}>
-            {data?.price || '...'}
+            {data?.price ? '$' + data.price : '...'}
           </p>
           <span className={`modal-change ${isPositive ? 'up' : 'down'}`}>
             {isPositive ? '▲' : '▼'} {data?.change}%
@@ -125,7 +132,40 @@ labels: chartHistory.map((_, index) => index),
     <Line data={chartData} options={chartOptions} />
   )}
 </div>
-
+<div className="modal-stats-grid" style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr 1fr', 
+          gap: '15px', 
+          margin: '10px 0',
+          padding: '15px',
+          background: 'rgba(255,255,255,0.05)',
+          borderRadius: '12px'
+        }}>
+          <div className="stat-item">
+            <span style={{ color: '#aaa', fontSize: '0.8rem', display: 'block' }}>Рейтинг у світі </span>
+            <strong style={{ fontSize: '1.1rem' }}>#{data?.rank || '---'}</strong>
+          </div>
+          <div className="stat-item">
+            <span style={{ color: '#aaa', fontSize: '0.8rem', display: 'block' }}>Капіталізація</span>
+            <strong style={{ fontSize: '1.1rem' }}>${formatNumber(data?.marketCap)}</strong>
+          </div>
+          <div className="stat-item">
+            <span style={{ color: '#aaa', fontSize: '0.8rem', display: 'block' }}>Max (24г)</span>
+            <strong style={{ fontSize: '1.1rem', color: '#2ebd85' }}>${data?.high24h || '---'}</strong>
+          </div>
+          <div className="stat-item">
+            <span style={{ color: '#aaa', fontSize: '0.8rem', display: 'block' }}>Min (24г)</span>
+            <strong style={{ fontSize: '1.1rem', color: '#f6465d' }}>${data?.low24h || '---'}</strong>
+          </div>
+          <div className="stat-item">
+            <span style={{ color: '#aaa', fontSize: '0.8rem', display: 'block' }}>Об'єм (24г)</span>
+            <strong style={{ fontSize: '1.1rem' }}>${formatNumber(data?.volume)}</strong>
+          </div>
+          <div className="stat-item">
+            <span style={{ color: '#aaa', fontSize: '0.8rem', display: 'block' }}>All-Time High</span>
+            <strong style={{ fontSize: '1.1rem', color: '#f3ba2f' }}>${data?.ath || '---'}</strong>
+          </div>
+        </div>
         <div className="calculator-section">
           <h3>Калькулятор</h3>
           <div className="calc-input-group">

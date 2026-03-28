@@ -30,7 +30,7 @@
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   width: 260px;
-  border-bottom: 5px solid #333; /* Початкова рамка знизу */
+ border-bottom: 5px solid #8a2be2; /* Початкова рамка знизу */
   transition: transform 0.3s ease;
 }
 
