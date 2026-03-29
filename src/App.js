@@ -43,6 +43,7 @@ function App() {
             : item.current_price.toFixed(item.current_price > 1 ? 2 : 4);
 
           results[symbol] = {
+            id: item.id,
           price: formattedPrice,
           change: item.price_change_percentage_24h?.toFixed(2),
           name: item.name,

@@ -12,74 +12,181 @@
 
 .modal-content {
   background: #181a20;
+  /* ЗМЕНШИЛИ верхній і нижній відступи до 15px */
   padding: 15px 30px;
   border-radius: 24px;
   border: 1px solid #333;
-  width: 90%;
-  max-width: 700px;
+  width: 95%;
+  /* РОЗШИРИЛИ вікно для ефекту "стрічки" */
+  max-width: 1100px; 
   position: relative;
   color: white;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.8  );
-  
+  box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+  /* Обмеження висоти, щоб не було на весь екран */
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .close-button {
   position: absolute;
-  top: 15px; right: 20px;
+  top: 10px; right: 15px;
   background: none; border: none;
-  color: #848e9c; font-size: 30px;
+  color: #848e9c; font-size: 28px;
   cursor: pointer;
+  transition: color 0.2s;
+  z-index: 10;
 }
 
-.modal-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
-.modal-icon { width: 45px; height: 45px; }
-.modal-current-price { font-size: 2.2rem; font-weight: bold; margin: 0; }
-.modal-change { font-size: 1rem; margin-top: 5px; display: block; }
-.modal-change.up { color: #2ebd85; }
-.modal-change.down { color: #f6465d; }
-
-.calculator-section {
-  background: #2b2f36;
-  padding: 15px;
-  border-radius: 16px;
-  margin-top: 25px;
+.close-button:hover {
+  color: white;
 }
 
-.calc-input-group {
-  display: flex; align-items: center;
-  background: #1e2329;
-  padding: 12px;
-  border-radius: 10px;
-  margin: 10px 0;
+/* Шапка з ціною: зробили компактнішою */
+.modal-top-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px; 
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 10px;
+  position: relative; 
+} 
+
+.modal-header { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
 }
 
-.calc-input-group input {
-  background: none; border: none;
-  color: white; outline: none;
-  width: 100%; font-size: 1rem;
+.modal-icon { 
+  width: 40px; 
+  height: 40px; 
+  border-radius: 50%;
 }
-/* Контейнер для графіка */
+
+.modal-header h2 {
+  font-size: 1.5rem; /* Трохи менший шрифт заголовка */
+  margin: 0;
+}
+
+.modal-price-info {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  /* --- НОВІ ЧОТИРИ РЯДКИ ДЛЯ FLEXBOX --- */
+  display: flex;              /* Вмикаємо Flexbox */
+  flex-direction: row;        /* Ставимо елементи в ряд горизонтально */
+  align-items: center;        /* Центруємо їх по вертикалі */
+  gap: 10px;                  /* Додаємо пробіл між ціною та процентами */
+}
+
+.modal-current-price { 
+  font-size: 2rem; /* Трохи менший шрифт ціни */
+  font-weight: bold; 
+  margin: 0; 
+}
+
+/* ІСПРАВЛЕННЯ КОЛЬОРУ ПРОЦЕНТІВ */
+.modal-change {
+  font-size: 1.1rem; /* Трохи більший шрифт відсотків */
+  font-weight: bold;
+  /* Прибираємо block, залишаємо inline-block для ідеального вирівнювання у рядку */
+  display: inline-block; 
+  margin: 0;         /* Прибираємо всі старі відступи ( margin-top ) */
+}
+
+/* Тепер ці класи точно спрацюють */
+.modal-change.up { color: #2ebd85 !important; }
+.modal-change.down { color: #f6465d !important; }
+
+/* Головний ряд: Графік + Статистика */
+.modal-main-row {
+  display: flex;
+  gap: 20px; /* Менший пробіл між блоками */
+  align-items: stretch;
+  margin-bottom: 15px;
+}
+
+/* Графік: зробили нижчим, щоб зекономити місце */
 .modal-chart-container {
-  width: 100%;
-  height: 180px; /* Висота графіка */
-  margin: 20px 0;
-  background: rgba(255, 255, 255, 0.03); /* Легкий фон під графіком */
+  flex: 2.5; /* Графік трохи ширший */
+  height: 250px; /* Зменшили висоту */
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
   padding: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Коригування відступів для ціни */
-.modal-price-info {
+/* Статистика: компактніша */
+.modal-stats-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px; /* Менші пробіли між цифрами */
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+  padding: 15px;
+  align-content: center;
+}
+
+.stat-item {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  margin-top: 10px;
+  gap: 2px;
 }
-/* Стиль для скелетона (заглушки) */
+
+.stat-label {
+  color: #848e9c;
+  font-size: 0.75rem;
+}
+
+.stat-value {
+  font-size: 1rem; /* Трохи менший шрифт значень */
+}
+
+/* Калькулятор: компактніший */
+.calculator-section {
+  background: rgba(255,255,255,0.03);
+  padding: 15px; /* Менше падінгу */
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.calculator-section h3 {
+  margin: 0 0 10px 0;
+  color: #aaa;
+  font-size: 1rem;
+}
+
+.calc-input-group {
+  display: flex; 
+  align-items: center;
+  background: #1e2329;
+  padding: 10px 15px; /* Компактніший ввід */
+  border-radius: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #444;
+}
+
+.calc-input-group input {
+  background: none; border: none;
+  color: white; outline: none;
+  width: 100%; font-size: 1.1rem;
+}
+
+.currency-label {
+  color: #848e9c;
+  font-weight: bold;
+}
+
+.calc-results-container {
+  font-size: 1.1rem;
+}
+
+/* Анімація скелетона */
 .skeleton-chart {
   width: 100%;
   height: 100%;
@@ -93,8 +200,17 @@
   border-radius: 8px;
 }
 
-/* Анімація переливання */
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* Адаптивність для телефонів */
+@media (max-width: 768px) {
+  .modal-main-row {
+    flex-direction: column;
+  }
+  .modal-chart-container {
+    height: 200px;
+  }
 }
