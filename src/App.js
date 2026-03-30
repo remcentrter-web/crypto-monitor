@@ -153,11 +153,97 @@ function App() {
       </div>
     );
   };
+  const filteredCoins = coins.filter(coin => 
+    coin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    coin.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="App">
       <nav className="navbar">
         <div className="nav-logo">CRYPTO MONITOR</div>
+        {/* --- РОЗУМНИЙ ПОШУК З ПІДКАЗКАМИ --- */} 
+       <div style={{ position: 'relative', margin: '0 auto' }}>
+          <input 
+            type="text" 
+            placeholder="Пошук монети (напр. BTC)..."   
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ 
+              padding: '10px 15px', 
+              borderRadius: '20px', 
+              border: 'none', 
+              outline: 'none', 
+              width: '250px',
+              background: '#2b3139',
+              color: 'white',
+              fontSize: '1rem',
+              textAlign: 'center'
+            }}
+          />
+          
+          {/* Випадаючий список (з'являється тільки коли є текст у пошуку) */}
+          {searchQuery.trim().length > 0 && filteredCoins.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              width: '100%',
+              background: '#1e2329',
+              borderRadius: '10px',
+              marginTop: '5px',
+              maxHeight: '300px',
+              overflowY: 'auto',
+              boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
+              zIndex: 1000,
+              border: '1px solid #333'
+            }}>
+              {filteredCoins.map(coin => {
+                // --- РОЗРАХОВУЄМО КОЛІР ДЛЯ ПРОЦЕНТІВ ---
+                const change = coin.price_change_percentage_24h?.toFixed(2);
+                const changeColor = coin.price_change_percentage_24h >= 0 ? '#16c784' : '#ea3943';
+
+                return (
+                  <div 
+                    key={coin.id}
+                    onClick={() => {
+                      setSelectedCoin(coin.symbol.toUpperCase()); // Відкриваємо детальне вікно!
+                      setSearchQuery(''); // Очищаємо рядок
+                    }}
+                    style={{
+                      padding: '10px 15px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #2b3139',
+                      color: 'white'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#2b3139'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <img src={coin.image} alt={coin.name} style={{ width: '24px', height: '24px', borderRadius: '50%' }} />
+                    
+                    {/* Групуємо назву і проценти разом */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span>{coin.name}</span>
+                      
+                      {/* --- ДОДАЄМО ПРОЦЕНТИ --- */}
+                      {change && (
+                        <span style={{ color: changeColor, fontSize: '0.9rem' }}>
+                          {coin.price_change_percentage_24h >= 0 ? '+' : ''}{change}%
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Символ монети зсуваємо в самий край */}
+                    <span style={{ color: '#aaa', fontSize: '0.8rem', marginLeft: 'auto' }}>{coin.symbol.toUpperCase()}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
         <div className="user-block" onClick={() => alert("Профіль Максим")}>
           <span className="user-name">Максим</span>
           <div className="user-avatar">Д</div>
@@ -207,7 +293,7 @@ function App() {
       <div className="popular-section">
         <h2 className="section-title">Весь ринок (Топ-50)</h2>
         <div className="popular-grid">
-          {coins.map(coin => renderCard(coin.symbol.toUpperCase(), coin.name, true))}
+        {coins.map(coin => renderCard(coin.symbol.toUpperCase(), coin.name, true))}
         </div>
       </div>
     </div>
