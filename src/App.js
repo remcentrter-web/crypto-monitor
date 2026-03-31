@@ -70,7 +70,7 @@ function App() {
     }
   };
     fetchTop50();
-    const interval = setInterval(fetchTop50, 30000); 
+    const interval = setInterval(fetchTop50, 60000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -219,7 +219,7 @@ function App() {
 
         {/* НАШ МАРШРУТИЗАТОР */}
         <Routes>
-          <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home coins={coins} />} />
           <Route path="/market" element={
             <>
               <Market />
