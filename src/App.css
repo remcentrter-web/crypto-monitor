@@ -167,3 +167,196 @@ h2 {
   transform: translateY(-2px); 
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); 
 }
+/* Анімація пульсації для кнопки "Обране" в меню */
+.pulse-nav {
+  animation: navPulse 0.5s ease-in-out;
+  background: #f7931a !important; 
+  color: #000 !important;
+}
+
+@keyframes navPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); box-shadow: 0 0 15px #f7931a; }
+  100% { transform: scale(1); }
+}
+
+/* Стилі для повідомлення (Toast), що виринає знизу */
+.toast-notification {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e2329;
+  color: white;
+  padding: 12px 25px;
+  border-radius: 10px;
+  border: 1px solid #f7931a;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+  animation: toastSlideUp 0.3s ease-out;
+}
+
+@keyframes toastSlideUp {
+  from { bottom: -50px; opacity: 0; }
+  to { bottom: 30px; opacity: 1; }
+}
+/* Контейнер сторінки - робимо його компактнішим */
+.favorites-page-container {
+  display: flex;
+  flex-direction: row;
+  gap: 30px; 
+  max-width: 1400px;
+  margin: 40px auto;
+  padding: 0 20px;
+  align-items: flex-start;
+}
+
+/* ОНОВЛЕНИЙ СКЛЯНИЙ САЙДБАР */
+.favorites-sidebar {
+  width: 260px; /* Було 320px, стало 260px */
+  min-width: 260px;
+  background: rgba(30, 35, 41, 0.4); /* Прозорість 60% */
+  backdrop-filter: blur(12px); /* Ефект матового скла */
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 20px; 
+  border: 1px solid rgba(255, 255, 255, 0.1); 
+  position: sticky;
+  top: 100px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-section {
+  margin-bottom: 25px;
+}
+
+.sidebar-section h3 {
+  color: rgba(142, 158, 175, 0.7);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  margin-bottom: 15px;
+  letter-spacing: 1.2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 8px;
+}
+
+/* КАРТКИ СТАТИСТИКИ (ТЕЖ ЛЕГКІ ТА СКЛЯНІ) */
+.stat-card {
+  background: rgba(43, 49, 57, 0.3); 
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  background: rgba(43, 49, 57, 0.5);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* КНОПКИ СОРТУВАННЯ */
+.sort-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sort-buttons button {
+  background: rgba(43, 49, 57, 0.4);
+  border: 1px solid transparent;
+  color: #fff;
+  padding: 10px 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.sort-buttons button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sort-buttons button.active {
+  border-color: rgba(247, 147, 26, 0.5);
+  background: rgba(247, 147, 26, 0.15);
+  color: #f7931a;
+}
+
+/* КНОПКА ОЧИСТИТИ */
+.clear-all-btn {
+  width: 100%;
+  background: none;
+  border: 1px dashed rgba(234, 57, 67, 0.4);
+  color: rgba(234, 57, 67, 0.8);
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 15px;
+  font-size: 0.85rem;
+  transition: 0.3s;
+}
+
+.clear-all-btn:hover {
+  background: rgba(234, 57, 67, 0.1);
+  border-color: #ea3943;
+  color: #ea3943;
+}
+
+/* ПРАВА ЧАСТИНА */
+.favorites-main {
+  flex-grow: 1;
+}
+
+.favorites-main .section-title {
+  text-align: left;
+  margin-bottom: 25px;
+  font-size: 1.8rem;
+}
+
+/* 📱 АДАПТИВНІСТЬ - ПЕРЕТВОРЮЄМО САЙДБАР НА ВЕРХНЮ ПАНЕЛЬ */
+@media (max-width: 1000px) {
+  .favorites-page-container {
+    flex-direction: column;
+  }
+  .favorites-sidebar {
+    width: 100%;
+    min-width: 100%;
+    position: static;
+    margin-bottom: 20px;
+  }
+  .sort-buttons {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  .sort-buttons button {
+    white-space: nowrap;
+  }
+}
+/* Центруємо заголовок ТІЛЬКИ на сторінці обраного */
+.favorites-main .section-title {
+  text-align: center;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  display: block;
+}

@@ -5,6 +5,7 @@ import CoinModal from './components/CoinModal';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Home from './pages/Home';
 import Market from './pages/Market';
+import Favorites from './pages/Favorites'; // Підключаємо майбутню сторінку
 
 function App() {
   const [prices, setPrices] = useState({});
@@ -12,9 +13,10 @@ function App() {
   const prevPricesRef = useRef({});
   const [selectedCoin, setSelectedCoin] = useState(null);
   
-  // --- НОВІ СТАНИ ДЛЯ ТОП-50 ТА ПОШУКУ ---
   const [coins, setCoins] = useState([]); 
   const [searchQuery, setSearchQuery] = useState(''); 
+  const [toast, setToast] = useState({ show: false, message: '', isAdd: true });
+const [isPulsing, setIsPulsing] = useState(false);
 
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('myFavorites');
@@ -25,7 +27,6 @@ function App() {
     localStorage.setItem('myFavorites', JSON.stringify(favorites));
   }, [favorites]);
 
-  // ОНОВЛЕНИЙ FETCH ДЛЯ ТОП-50 З COINGECKO
   useEffect(() => {
    const fetchTop50 = async () => {
     try {
@@ -44,17 +45,17 @@ function App() {
 
           results[symbol] = {
             id: item.id,
-          price: formattedPrice,
-          change: item.price_change_percentage_24h?.toFixed(2),
-          name: item.name,
-          image: item.image,
-          rank: item.market_cap_rank,
-          marketCap: item.market_cap,
-          high24h: item.high_24h,
-          low24h: item.low_24h,
-          volume: item.total_volume,
-          ath: item.ath
-        };
+            price: formattedPrice,
+            change: item.price_change_percentage_24h?.toFixed(2),
+            name: item.name,
+            image: item.image,
+            rank: item.market_cap_rank,
+            marketCap: item.market_cap,
+            high24h: item.high_24h,
+            low24h: item.low_24h,
+            volume: item.total_volume,
+            ath: item.ath
+          };
         });
 
         setPrices(prev => {
@@ -79,10 +80,28 @@ function App() {
   }, [prices]);
 
   const toggleFavorite = (coinId) => {
-    setFavorites(prev => 
-      prev.includes(coinId) ? prev.filter(id => id !== coinId) : [...prev, coinId]
-    );
-  };
+  const isAdding = !favorites.includes(coinId);
+  
+  setFavorites(prev => 
+    isAdding ? [...prev, coinId] : prev.filter(id => id !== coinId)
+  );
+
+  // Вмикаємо пульсацію кнопки в шапці (тільки коли додаємо)
+  if (isAdding) {
+    setIsPulsing(true);
+    setTimeout(() => setIsPulsing(false), 500);
+  }
+
+  // Показуємо плаваюче повідомлення
+  setToast({ 
+    show: true, 
+    message: isAdding ? `${coinId} додано в обране` : `${coinId} видалено з обраного`,
+    isAdd: isAdding
+  });
+
+  // Автоматично ховаємо повідомлення через 3 секунди
+  setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+};
 
   const renderCard = (id, name, isSmall = false) => {
     const coinData = prices[id]; 
@@ -156,10 +175,13 @@ function App() {
       <div className="App">
         <nav className="navbar">
           <div className="nav-logo">CRYPTO MONITOR</div>
+          
           <div style={{ display: 'flex', gap: '15px', marginLeft: '30px', alignItems: 'center' }}>
-  <Link to="/" className="nav-link-btn">Головна</Link>
-  <Link to="/market" className="nav-link-btn">Ринок</Link>
-      </div>
+            <Link to="/" className="nav-link-btn">Головна</Link>
+            <Link to="/market" className="nav-link-btn">Ринок</Link>
+          <Link to="/favorites" className={`nav-link-btn ${isPulsing ? 'pulse-nav' : ''}`}>⭐ Обране</Link>
+          </div>
+
           <div style={{ position: 'relative', margin: '0 auto' }}>
             <input 
               type="text" 
@@ -217,23 +239,13 @@ function App() {
           </div>
         </nav>
 
-        {/* НАШ МАРШРУТИЗАТОР */}
         <Routes>
-        <Route path="/" element={<Home coins={coins} />} />
+          <Route path="/" element={<Home coins={coins} />} />
+          
           <Route path="/market" element={
             <>
               <Market />
               
-              {/* УСІ МОНЕТИ ТЕПЕР ТУТ, ВСЕРЕДИНІ РИНКУ */}
-              {favorites.length > 0 && (
-                <div className="popular-section" style={{ background: 'rgba(247, 147, 26, 0.05)', padding: '20px', borderRadius: '20px', margin: '20px auto', maxWidth: '1200px' }}>
-                  <h2 className="section-title">⭐ МОЄ ОБРАНЕ</h2>
-                  <div className="crypto-container">
-                    {favorites.map(id => renderCard(id, id === 'BTC' ? 'Bitcoin' : id === 'ETH' ? 'Ethereum' : id, true))}
-                  </div>
-                </div>
-              )}
-
               <h1>Топ-3 криптовалюти на сьогодні</h1>
               <p className="update-time">Останнє оновлення: {lastUpdated}</p>
               
@@ -265,9 +277,19 @@ function App() {
               </div>
             </>
           } />
+
+          {/* НОВИЙ МАРШРУТ ДЛЯ СТОРІНКИ ОБРАНОГО */}
+          <Route path="/favorites" element={
+            <Favorites 
+              favorites={favorites} 
+              prices={prices} 
+              renderCard={renderCard} 
+              setFavorites={setFavorites} 
+            />
+          } />
+
         </Routes>
 
-        {/* МОДАЛЬНЕ ВІКНО ТЕПЕР ПРАЦЮЄ НА ВСІХ СТОРІНКАХ */}
         {selectedCoin && (
           <CoinModal 
             coinId={selectedCoin} 
@@ -275,7 +297,11 @@ function App() {
             onClose={() => setSelectedCoin(null)} 
           />
         )}
-
+{toast.show && (
+  <div className="toast-notification">
+    {toast.isAdd ? '✅' : '🗑️'} {toast.message}
+  </div>
+)}
       </div>
     </Router>
   );
