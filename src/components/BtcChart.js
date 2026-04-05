@@ -18,7 +18,7 @@ const CHART_GREEN = '#00c087';
 const CHART_RED = '#ff4343';   
 
 const BtcChart = ({ btcData }) => {
-  const [chartData, setChartData] = useState([]);
+  const [chartHistory, setChartHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const chartRef = useRef(null);
@@ -45,15 +45,17 @@ const BtcChart = ({ btcData }) => {
         const res = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1');
         if (!res.ok) throw new Error('Ліміт API');
         const data = await res.json();
-        const prices = data.prices.map(item => item[1]);
-        setChartData(prices);
+        // Зберігаємо повні дані з часом
+        setChartHistory(data.prices);
       } catch (error) {
         console.warn("Малюємо резервний графік BTC");
         const basePrice = btcData?.current_price || 67000;
-        const fakePrices = Array.from({length: 24}, (_, i) => 
+        const now = Date.now();
+        const fakeData = Array.from({length: 24}, (_, i) => [
+          now - (23 - i) * 3600000,
           basePrice * (1 + Math.sin(i / 2) * 0.02 + Math.random() * 0.01)
-        );
-        setChartData(fakePrices);
+        ]);
+        setChartHistory(fakeData);
       } finally {
         setIsLoading(false);
       }
@@ -63,12 +65,19 @@ const BtcChart = ({ btcData }) => {
 
   if (!btcData) return null;
 
+  const currentPrice = btcData.current_price;
+  const prices = chartHistory.map(item => item[1]);
+  const labels = chartHistory.map(item => {
+    const date = new Date(item[0]);
+    return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  });
+
   const data = {
-    labels: chartData.map((_, i) => i),
+    labels: labels,
     datasets: [
       {
         label: 'Ціна BTC ($)',
-        data: chartData,
+        data: prices,
         fill: true,
         tension: 0.3, 
         pointRadius: 0,
@@ -81,23 +90,22 @@ const BtcChart = ({ btcData }) => {
           const chartArea = context.chart.chartArea;
           if (!chartArea) return null;
 
-          const isGrowing = chartData[chartData.length - 1] >= chartData[0];
+          const isGrowing = prices[prices.length - 1] >= prices[0];
           const gradientColor = isGrowing ? CHART_GREEN : CHART_RED;
 
           const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          // ЗРОБИЛИ ГРАФІК ПРОЗОРІШИМ (було 66, стало 33)
-          gradient.addColorStop(0, `${gradientColor}33`); 
+          // ЗРОБИЛИ ФОН ЩЕ ПРОЗОРІШИМ (було 33, стало 15)
+          gradient.addColorStop(0, `${gradientColor}15`); 
           gradient.addColorStop(1, `${gradientColor}00`); 
           return gradient;
         },
       },
-      // НОВА ФІЧА: Пунктирна лінія поточної ціни
       {
         label: 'Поточна ціна',
-        data: Array(chartData.length).fill(btcData.current_price),
-        borderColor: 'rgba(255, 255, 255, 0.2)', // Напівпрозора біла лінія
+        data: Array(prices.length).fill(currentPrice),
+        borderColor: 'rgba(255, 255, 255, 0.2)',
         borderWidth: 1,
-        borderDash: [5, 5], // Робить лінію пунктирною
+        borderDash: [5, 5],
         pointRadius: 0,
         pointHoverRadius: 0,
         fill: false,
@@ -121,19 +129,35 @@ const BtcChart = ({ btcData }) => {
         borderColor: '#2b3139',
         borderWidth: 1,
         padding: 10,
+        filter: function(tooltipItem) {
+          return tooltipItem.datasetIndex === 0; 
+        },
         callbacks: {
           label: (context) => `$${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-          title: () => ''
+          title: (tooltipItems) => `Час: ${tooltipItems[0].label}`
         }
       }
     },
-    scales: { x: { display: false }, y: { display: false } },
+    scales: { 
+      // МАГІЯ ОСІ X: Показуємо час під графіком
+      x: { 
+        display: true,
+        grid: { display: false, drawBorder: false },
+        ticks: {
+          color: '#8e9eaf',
+          maxTicksLimit: 6,
+          maxRotation: 0,
+          font: { size: 10 }
+        }
+      }, 
+      y: { display: false } 
+    },
     interaction: { mode: 'nearest', axis: 'x', intersect: false }
   };
 
-  const high = btcData.high_24h || btcData.current_price * 1.05;
-  const low = btcData.low_24h || btcData.current_price * 0.95;
-  const rangePercent = Math.min(Math.max(((btcData.current_price - low) / (high - low)) * 100, 0), 100);
+  const high = btcData.high_24h || currentPrice * 1.05;
+  const low = btcData.low_24h || currentPrice * 0.95;
+  const rangePercent = Math.min(Math.max(((currentPrice - low) / (high - low)) * 100, 0), 100);
 
   return (
     <>
@@ -169,7 +193,7 @@ const BtcChart = ({ btcData }) => {
               </h3>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px', marginTop: '5px' }}>
                 <span style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff' }}>
-                  ${btcData.current_price.toLocaleString()}
+                  ${currentPrice.toLocaleString()}
                 </span>
                 <span style={{ 
                   fontSize: '1.2rem', fontWeight: 'bold', 
@@ -208,7 +232,8 @@ const BtcChart = ({ btcData }) => {
           </div>
         </div>
 
-        <div style={{ height: '300px', width: '100%' }}>
+        {/* Трохи збільшили висоту, щоб вмістився час */}
+        <div style={{ height: '320px', width: '100%' }}>
           {isLoading ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: '1.2rem' }}>
               Аналізуємо ринок... ⏳

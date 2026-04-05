@@ -156,10 +156,10 @@ function App() {
       <div className="App">
         <nav className="navbar">
           <div className="nav-logo">CRYPTO MONITOR</div>
-          <div style={{ display: 'flex', gap: '20px', marginLeft: '30px', alignItems: 'center' }}>
-            <Link to="/" style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold', fontSize: '1.1rem' }}>Головна</Link>
-            <Link to="/market" style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold', fontSize: '1.1rem' }}>Ринок</Link>
-          </div>
+          <div style={{ display: 'flex', gap: '15px', marginLeft: '30px', alignItems: 'center' }}>
+  <Link to="/" className="nav-link-btn">Головна</Link>
+  <Link to="/market" className="nav-link-btn">Ринок</Link>
+      </div>
           <div style={{ position: 'relative', margin: '0 auto' }}>
             <input 
               type="text" 

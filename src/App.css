@@ -147,3 +147,23 @@ h2 {
 .crypto-card {
   transition: background-color 0.5s ease;
 }
+/* Стилі для кнопок навігації (Головна, Ринок) */
+/* Стилі для кнопок навігації (Головна, Ринок) */
+.nav-link-btn {
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1rem;
+  background: #2a2a2a; /* 1 в 1 колір твого профілю */
+  padding: 8px 20px;   
+  border-radius: 25px; /* Таке ж заокруглення, як у профілю */
+  border: none;        /* Прибрали рамку, щоб було ідеально схоже */
+  transition: all 0.3s ease; 
+}
+
+/* Ефект при наведенні мишки */
+.nav-link-btn:hover {
+  background: #333; /* Такий самий колір при наведенні, як у профілю */
+  transform: translateY(-2px); 
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); 
+}
