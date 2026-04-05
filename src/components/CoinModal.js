@@ -11,15 +11,49 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-// 1. ІМПОРТУЄМО ПЛАГІН ДЛЯ ЗУМУ
 import zoomPlugin from 'chartjs-plugin-zoom';
 import './CoinModal.css';
 
-// 2. РЕЄСТРУЄМО ПЛАГІН
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, zoomPlugin);
 
 const CHART_GREEN = '#00c087'; 
 const CHART_RED = '#ff4343'; 
+
+// 🎯 2D-ПРИЦІЛ
+const crosshairPlugin = {
+  id: 'crosshair',
+  afterDraw: (chart) => {
+    if (chart.tooltip && typeof chart.tooltip.getActiveElements === 'function') {
+      const activeElements = chart.tooltip.getActiveElements();
+      if (activeElements && activeElements.length > 0) {
+        const ctx = chart.ctx;
+        const x = activeElements[0].element.x;
+        const y = activeElements[0].element.y;
+        const topY = chart.scales.y.top;
+        const bottomY = chart.scales.y.bottom;
+        const leftX = chart.scales.x.left;
+        const rightX = chart.scales.x.right;
+
+        ctx.save();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.setLineDash([4, 4]);
+
+        ctx.beginPath();
+        ctx.moveTo(x, topY);
+        ctx.lineTo(x, bottomY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(leftX, y);
+        ctx.lineTo(rightX, y);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+  }
+};
 
 const CoinModal = ({ coinId, data, onClose }) => {
   const [usdAmount, setUsdAmount] = useState('');
@@ -82,6 +116,12 @@ const CoinModal = ({ coinId, data, onClose }) => {
     return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
   });
 
+  // Знаходимо індекси найвищої і найнижчої ціни
+  const maxPrice = Math.max(...prices);
+  const minPrice = Math.min(...prices);
+  const maxIndex = prices.indexOf(maxPrice);
+  const minIndex = prices.indexOf(minPrice);
+
   const chartData = {
     labels: labels,
     datasets: [
@@ -90,7 +130,36 @@ const CoinModal = ({ coinId, data, onClose }) => {
         data: prices,
         fill: true,
         tension: 0.3,
-        pointRadius: 0,
+        // 🔥 РОЗУМНІ КРАПКИ: Live-крапка, Max-крапка і Min-крапка
+        pointRadius: (context) => {
+          const idx = context.dataIndex;
+          if (idx === prices.length - 1) return 5; // Поточна ціна
+          if (idx === maxIndex || idx === minIndex) return 4; // Екстремуми
+          return 0; // Всі інші ховаємо
+        },
+        pointBackgroundColor: (context) => {
+          const idx = context.dataIndex;
+          if (idx === prices.length - 1) return '#f7931a'; // Оранжевий для Live
+          if (idx === maxIndex) return CHART_GREEN; // Зелений для Max
+          if (idx === minIndex) return CHART_RED; // Червоний для Min
+          
+          // ДЛЯ НАВЕДЕННЯ (HOVER): Обчислюємо локальний тренд (зелений чи червоний)
+          if (idx > 0) {
+            return prices[idx] >= prices[idx - 1] ? CHART_GREEN : CHART_RED;
+          }
+          return priceColor;
+        },
+        pointBorderColor: (context) => {
+          const idx = context.dataIndex;
+          if (idx === prices.length - 1 || idx === maxIndex || idx === minIndex) return '#fff'; // Біла обводка для головних крапок
+          
+          // Для наведення
+          if (idx > 0) {
+            return prices[idx] >= prices[idx - 1] ? CHART_GREEN : CHART_RED;
+          }
+          return priceColor;
+        },
+        borderWidth: 2,
         pointHoverRadius: 6,
         segment: {
           borderColor: ctx => ctx.p0.parsed.y <= ctx.p1.parsed.y ? CHART_GREEN : CHART_RED,
@@ -112,7 +181,7 @@ const CoinModal = ({ coinId, data, onClose }) => {
       {
         label: 'Поточна ціна',
         data: Array(prices.length).fill(currentPrice),
-        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
         borderWidth: 1,
         borderDash: [5, 5],
         pointRadius: 0,
@@ -138,28 +207,59 @@ const CoinModal = ({ coinId, data, onClose }) => {
         borderColor: '#2b3139',
         borderWidth: 1,
         padding: 10,
+        displayColors: true, // Вмикаємо квадратики в тултипі
         filter: function(tooltipItem) {
           return tooltipItem.datasetIndex === 0; 
         },
         callbacks: {
-          label: (context) => `$${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}`,
+          // 🎨 Колір квадратика в підказці тепер відповідає ЛОКАЛЬНОМУ тренду
+          labelColor: function(context) {
+            const idx = context.dataIndex;
+            let color = priceColor;
+            if (idx === prices.length - 1) {
+              color = '#f7931a';
+            } else if (idx > 0) {
+              color = prices[idx] >= prices[idx - 1] ? CHART_GREEN : CHART_RED;
+            }
+            return {
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: 2,
+            };
+          },
+          label: (context) => {
+            const currentVal = context.parsed.y;
+            const startVal = prices[0];
+            const diffPercent = ((currentVal - startVal) / startVal) * 100;
+            const sign = diffPercent >= 0 ? '▲ +' : '▼ ';
+            
+            return `Загальний: ${sign}${diffPercent.toFixed(2)}% | $${currentVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}`;
+          },
+          // ⚡ ДРУГИЙ РЯДОК: Показує рух ціни за останні 5 хвилин
+          afterLabel: (context) => {
+            const idx = context.dataIndex;
+            if (idx > 0) {
+              const prevVal = prices[idx - 1];
+              const currVal = prices[idx];
+              const stepDiff = ((currVal - prevVal) / prevVal) * 100;
+              const stepSign = stepDiff >= 0 ? '+' : '';
+              return `Локальний тренд: ${stepSign}${stepDiff.toFixed(3)}%`;
+            }
+            return null;
+          },
           title: (tooltipItems) => `Час: ${tooltipItems[0].label}`
         }
       },
-      // 3. НАЛАШТУВАННЯ ЗУМУ
       zoom: {
         pan: {
           enabled: true,
-          mode: 'x', // Дозволяє тягати графік мишкою тільки вліво-вправо
+          mode: 'x',
         },
         zoom: {
-          wheel: {
-            enabled: true, // Зум коліщатком мишки
-          },
-          pinch: {
-            enabled: true // Зум пальцями на телефоні
-          },
-          mode: 'x', // Наближаємо тільки по осі часу (щоб графік не плющило у висоту)
+          wheel: { enabled: true, speed: 0.05 },
+          pinch: { enabled: true },
+          drag: { enabled: false },
+          mode: 'x',
         }
       }
     },
@@ -182,6 +282,12 @@ const CoinModal = ({ coinId, data, onClose }) => {
   const cryptoAmount = usdAmount && data?.price 
     ? (parseFloat(usdAmount) / currentPrice).toFixed(6)
     : '0.00';
+
+  const handleDoubleClick = () => {
+    if (chartRef.current && typeof chartRef.current.resetZoom === 'function') {
+      chartRef.current.resetZoom();
+    }
+  };
 
   return (
     <>
@@ -232,14 +338,19 @@ const CoinModal = ({ coinId, data, onClose }) => {
           <div className="modal-main-row" style={{ marginTop: '20px' }}>
             
             <div className="modal-chart-container" style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: '300px', width: '100%' }}>
+              
+              <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#aaa', marginBottom: '10px' }}>
+                *Крутіть коліщатко для наближення. Двічі клікніть, щоб скинути масштаб.
+              </div>
+              
+              <div style={{ height: '300px', width: '100%', cursor: 'crosshair' }} onDoubleClick={handleDoubleClick}>
                 {isLoading ? (
                   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>
                     Аналізуємо графік... ⏳
                   </div>
                 ) : (
-                  <div ref={chartRef} style={{ height: '100%', animation: isVisible ? 'drawChartRevealModal 1s ease-out forwards' : 'none' }}>
-                    <Line data={chartData} options={chartOptions} />
+                  <div style={{ height: '100%', animation: isVisible ? 'drawChartRevealModal 1s ease-out forwards' : 'none' }}>
+                    <Line ref={chartRef} data={chartData} options={chartOptions} plugins={[crosshairPlugin]} />
                   </div>
                 )}
               </div>
