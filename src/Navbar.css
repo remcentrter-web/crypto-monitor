@@ -1,21 +1,46 @@
+/* ГОЛОВНИЙ КОНТЕЙНЕР ПАНЕЛІ (тримає все в лінію) */
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 15px 50px;
   background-color: #1a1a1a;
-  border-bottom: 2px solid #f7931a; /* Ось твій золотистий колір лінії */
+  border-bottom: 2px solid #f7931a;
   width: 100%;
   box-sizing: border-box;
 }
 
+/* 🔥 ОНОВЛЕНИЙ ПРЕМІАЛЬНИЙ ЛОГОТИП (ЗМЕНШЕНИЙ) */
 .nav-logo {
-  font-size: 22px;
-  font-weight: 800;
-  color: #f7931a; /* Золотистий колір тексту */
-  letter-spacing: 1px;
+  font-size: 21px; 
+  font-weight: 900; 
+  letter-spacing: 1.5px; 
+  
+  background: linear-gradient(90deg, #f7931a 0%, #ffd700 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  
+  filter: drop-shadow(0px 2px 8px rgba(247, 147, 26, 0.4));
+  
+  display: flex;
+  align-items: center;
+  gap: 8px; 
+  cursor: pointer;
+  transition: transform 0.3s ease;
 }
 
+.nav-logo:hover {
+  transform: scale(1.03);
+}
+
+.nav-logo::before {
+  content: '⚡'; 
+  font-size: 22px; 
+  -webkit-text-fill-color: initial; 
+  filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.6)); 
+}
+
+/* БЛОК ПРОФІЛЮ КОРИСТУВАЧА */
 .user-block {
   display: flex;
   align-items: center;
@@ -24,7 +49,7 @@
   padding: 8px 18px;
   border-radius: 25px;
   cursor: pointer;
-  transition: 0.3s;
+  transition: 0.3s ease;
 }
 
 .user-block:hover {
@@ -39,7 +64,7 @@
 .user-avatar {
   width: 35px;
   height: 35px;
-  background: linear-gradient(45deg, #f7931a, #ffab40); /* Золотистий градієнт */
+  background: linear-gradient(45deg, #f7931a, #ffab40);
   border-radius: 50%;
   display: flex;
   justify-content: center;
