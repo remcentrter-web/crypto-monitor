@@ -5,7 +5,7 @@ import CoinModal from './components/CoinModal';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Home from './pages/Home';
 import Market from './pages/Market';
-import Favorites from './pages/Favorites'; // Підключаємо майбутню сторінку
+import Favorites from './pages/Favorites';
 
 function App() {
   const [prices, setPrices] = useState({});
@@ -16,8 +16,11 @@ function App() {
   const [coins, setCoins] = useState([]); 
   const [searchQuery, setSearchQuery] = useState(''); 
   const [toast, setToast] = useState({ show: false, message: '', isAdd: true });
-const [isPulsing, setIsPulsing] = useState(false);
-const [visibleCoins, setVisibleCoins] = useState(16);
+  const [isPulsing, setIsPulsing] = useState(false);
+  const [visibleCoins, setVisibleCoins] = useState(16);
+
+  const [isSearchFocused, setIsSearchFocused] = useState(false); 
+  const [searchCategory, setSearchCategory] = useState('all'); 
 
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('myFavorites');
@@ -37,29 +40,43 @@ const [visibleCoins, setVisibleCoins] = useState(16);
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        const results = {};
-        data.forEach(item => {
-          const symbol = item.symbol.toUpperCase();
-          const formattedPrice = item.current_price < 0.01 
-            ? item.current_price.toFixed(6) 
-            : item.current_price.toFixed(item.current_price > 1 ? 2 : 4);
-
-          results[symbol] = {
-            id: item.id,
-            price: formattedPrice,
-            change: item.price_change_percentage_24h?.toFixed(2),
-            name: item.name,
-            image: item.image,
-            rank: item.market_cap_rank,
-            marketCap: item.market_cap,
-            high24h: item.high_24h,
-            low24h: item.low_24h,
-            volume: item.total_volume,
-            ath: item.ath
-          };
-        });
-
         setPrices(prev => {
+          const results = {};
+          
+          data.forEach(item => {
+            const symbol = item.symbol.toUpperCase();
+            const formattedPrice = item.current_price < 0.01 
+              ? item.current_price.toFixed(6) 
+              : item.current_price.toFixed(item.current_price > 1 ? 2 : 4);
+
+            // ФІКС БАГА: Запам'ятовуємо, куди пішла ціна (вгору чи вниз)
+            let dir = 'up'; 
+            if (prev[symbol]) {
+              if (parseFloat(formattedPrice) > parseFloat(prev[symbol].price)) {
+                dir = 'up';
+              } else if (parseFloat(formattedPrice) < parseFloat(prev[symbol].price)) {
+                dir = 'down';
+              } else {
+                dir = prev[symbol].direction || 'up'; // Якщо не змінилась, лишаємо старий напрямок
+              }
+            }
+
+            results[symbol] = {
+              id: item.id,
+              price: formattedPrice,
+              change: item.price_change_percentage_24h?.toFixed(2),
+              name: item.name,
+              image: item.image,
+              rank: item.market_cap_rank,
+              marketCap: item.market_cap,
+              high24h: item.high_24h,
+              low24h: item.low_24h,
+              volume: item.total_volume,
+              ath: item.ath,
+              direction: dir // Зберігаємо напрямок у стан
+            };
+          });
+
           prevPricesRef.current = prev;
           return results;
         });
@@ -81,28 +98,25 @@ const [visibleCoins, setVisibleCoins] = useState(16);
   }, [prices]);
 
   const toggleFavorite = (coinId) => {
-  const isAdding = !favorites.includes(coinId);
-  
-  setFavorites(prev => 
-    isAdding ? [...prev, coinId] : prev.filter(id => id !== coinId)
-  );
+    const isAdding = !favorites.includes(coinId);
+    
+    setFavorites(prev => 
+      isAdding ? [...prev, coinId] : prev.filter(id => id !== coinId)
+    );
 
-  // Вмикаємо пульсацію кнопки в шапці (тільки коли додаємо)
-  if (isAdding) {
-    setIsPulsing(true);
-    setTimeout(() => setIsPulsing(false), 500);
-  }
+    if (isAdding) {
+      setIsPulsing(true);
+      setTimeout(() => setIsPulsing(false), 500);
+    }
 
-  // Показуємо плаваюче повідомлення
-  setToast({ 
-    show: true, 
-    message: isAdding ? `${coinId} додано в обране` : `${coinId} видалено з обраного`,
-    isAdd: isAdding
-  });
+    setToast({ 
+      show: true, 
+      message: isAdding ? `${coinId} додано в обране` : `${coinId} видалено з обраного`,
+      isAdd: isAdding
+    });
 
-  // Автоматично ховаємо повідомлення через 3 секунди
-  setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
-};
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+  };
 
   const renderCard = (id, name, isSmall = false) => {
     const coinData = prices[id]; 
@@ -110,15 +124,18 @@ const [visibleCoins, setVisibleCoins] = useState(16);
     const changePercent = coinData?.change;
     const coinImage = coinData?.image; 
     
+    // ФІКС БАГА: Беремо колір з пам'яті монети
+    const isUp = coinData?.direction !== 'down'; 
+    
     const prevPriceData = prevPricesRef.current[id];
     const prevPrice = prevPriceData?.price;
     
-    const isUp = parseFloat(currentPrice) >= parseFloat(prevPrice);
     const isPositiveChange = parseFloat(changePercent) >= 0;
     const isFavorite = favorites.includes(id);
 
+    // Анімація спалаху (залишається працювати тільки в момент оновлення)
     const flashClass = (currentPrice && prevPrice && currentPrice !== prevPrice) 
-      ? (isUp ? 'up-flash' : 'down-flash') 
+      ? (parseFloat(currentPrice) > parseFloat(prevPrice) ? 'up-flash' : 'down-flash') 
       : '';
 
     return (
@@ -166,10 +183,20 @@ const [visibleCoins, setVisibleCoins] = useState(16);
     );
   };
 
-  const filteredCoins = coins.filter(coin => 
-    coin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    coin.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCoins = coins.filter(coin => {
+    const matchesText = coin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        coin.symbol.toLowerCase().includes(searchQuery.toLowerCase());
+    let matchesCategory = true;
+    if (searchCategory === 'top10') matchesCategory = coin.market_cap_rank <= 10;
+    if (searchCategory === 'gainers') matchesCategory = coin.price_change_percentage_24h > 0;
+    if (searchCategory === 'stables') {
+      const stables = ['usdt', 'usdc', 'usds', 'dai', 'fdusd', 'usde'];
+      matchesCategory = stables.includes(coin.symbol.toLowerCase());
+    }
+    if (searchCategory === 'favorites') matchesCategory = favorites.includes(coin.symbol.toUpperCase());
+
+    return matchesText && matchesCategory;
+  });
 
   return (
     <Router>
@@ -186,54 +213,94 @@ const [visibleCoins, setVisibleCoins] = useState(16);
           <div style={{ position: 'relative', margin: '0 auto' }}>
             <input 
               type="text" 
-              placeholder="Пошук монети (напр. BTC)..."   
+              placeholder="Пошук або фільтр..."   
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
               style={{ 
                 padding: '10px 15px', borderRadius: '20px', border: 'none', 
-                outline: 'none', width: '250px', background: '#2b3139', 
-                color: 'white', fontSize: '1rem', textAlign: 'center'
+                outline: 'none', width: isSearchFocused ? '350px' : '250px', 
+                background: '#2b3139', color: 'white', fontSize: '1rem', textAlign: 'center',
+                transition: 'width 0.3s ease, box-shadow 0.3s ease',
+                boxShadow: isSearchFocused ? '0 0 10px rgba(247, 147, 26, 0.3)' : 'none'
               }}
             />
-            {searchQuery.trim().length > 0 && filteredCoins.length > 0 && (
+            
+            {(isSearchFocused || searchQuery.trim().length > 0 || searchCategory !== 'all') && (
               <div style={{
-                position: 'absolute', top: '100%', left: 0, width: '100%', background: '#1e2329',
-                borderRadius: '10px', marginTop: '5px', maxHeight: '300px', overflowY: 'auto',
-                boxShadow: '0 5px 15px rgba(0,0,0,0.5)', zIndex: 1000, border: '1px solid #333'
+                position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', 
+                width: '450px', background: '#1e2329', borderRadius: '15px', 
+                marginTop: '10px', overflow: 'hidden',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.8)', zIndex: 1000, border: '1px solid #333'
               }}>
-                {filteredCoins.map(coin => {
-                  const change = coin.price_change_percentage_24h?.toFixed(2);
-                  const changeColor = coin.price_change_percentage_24h >= 0 ? '#16c784' : '#ea3943';
-                  return (
-                    <div 
-                      key={coin.id}
-                      onClick={() => {
-                        setSelectedCoin(coin.symbol.toUpperCase()); 
-                        setSearchQuery(''); 
-                      }}
+                
+                <div style={{ padding: '12px', background: '#15191e', borderBottom: '1px solid #2b3139', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  {[
+                    { id: 'all', label: 'Всі' },
+                    { id: 'top10', label: '🔥 Топ-10' },
+                    { id: 'gainers', label: '🚀 Зростають' },
+                    { id: 'stables', label: '💵 Стейбли' },
+                    { id: 'favorites', label: '⭐ Обрані' }
+                  ].map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSearchCategory(cat.id)}
                       style={{
-                        padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '10px',
-                        cursor: 'pointer', borderBottom: '1px solid #2b3139', color: 'white'
+                        padding: '6px 12px', borderRadius: '15px', fontSize: '0.85rem', border: 'none',
+                        background: searchCategory === cat.id ? '#f7931a' : '#2b3139',
+                        color: searchCategory === cat.id ? '#12161c' : '#aaa',
+                        cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s ease'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#2b3139'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
-                      <img src={coin.image} alt={coin.name} style={{ width: '24px', height: '24px', borderRadius: '50%' }} />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span>{coin.name}</span>
-                        {change && (
-                          <span style={{ color: changeColor, fontSize: '0.9rem' }}>
-                            {coin.price_change_percentage_24h >= 0 ? '+' : ''}{change}%
-                          </span>
-                        )}
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  {filteredCoins.length > 0 ? filteredCoins.map(coin => {
+                    const change = coin.price_change_percentage_24h?.toFixed(2);
+                    const changeColor = coin.price_change_percentage_24h >= 0 ? '#16c784' : '#ea3943';
+                    return (
+                      <div 
+                        key={coin.id}
+                        onClick={() => {
+                          setSelectedCoin(coin.symbol.toUpperCase()); 
+                          setSearchQuery(''); 
+                          setSearchCategory('all'); 
+                        }}
+                        style={{
+                          padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '12px',
+                          cursor: 'pointer', borderBottom: '1px solid #2b3139', color: 'white',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#2b3139'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <img src={coin.image} alt={coin.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                          <span style={{ fontWeight: 'bold' }}>{coin.name}</span>
+                          <span style={{ color: '#aaa', fontSize: '0.8rem' }}>{coin.symbol.toUpperCase()}</span>
+                        </div>
+                        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                          <div style={{ fontWeight: 'bold' }}>${coin.current_price < 0.01 ? coin.current_price.toFixed(6) : coin.current_price.toFixed(2)}</div>
+                          {change && (
+                            <span style={{ color: changeColor, fontSize: '0.85rem' }}>
+                              {coin.price_change_percentage_24h >= 0 ? '+' : ''}{change}%
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span style={{ color: '#aaa', fontSize: '0.8rem', marginLeft: 'auto' }}>{coin.symbol.toUpperCase()}</span>
-                    </div>
-                  );
-                })}
+                    );
+                  }) : (
+                    <div style={{ padding: '30px', textAlign: 'center', color: '#aaa' }}>За цим фільтром нічого не знайдено 🤷‍♂️</div>
+                  )}
+                </div>
               </div>
             )}
           </div>
+
           <div className="user-block" onClick={() => alert("Профіль Максим")}>
             <span className="user-name">Максим</span>
             <div className="user-avatar">Д</div>
@@ -253,7 +320,7 @@ const [visibleCoins, setVisibleCoins] = useState(16);
               <div className="crypto-container">
                {renderCard('BTC', 'Bitcoin')}
                 {renderCard('ETH', 'Ethereum')}
-                  {renderCard('SOL', 'Solana')}     
+                  {renderCard('SOL', 'Solana')}    
               </div>
 
               <div className="popular-section">
@@ -274,9 +341,8 @@ const [visibleCoins, setVisibleCoins] = useState(16);
                 <h2 className="section-title">Весь ринок</h2>
                 
                 <div className="popular-grid">
-                  {/* ТУТ ЗМІНА 1: Додаємо клас fade-in-item для плавної появи нових карток */}
                   {coins.slice(0, visibleCoins).map((coin, index) => (
-                    <div key={coin.id} className={index >= 16 ? 'fade-in-item' : ''} style={{ animationDelay: `${(index - 20) * 0.05}s` }}>
+                    <div key={coin.id} className={index >= 16 ? 'fade-in-item' : ''} style={{ animationDelay: `${(index - 16) * 0.03}s` }}>
                       {renderCard(coin.symbol.toUpperCase(), coin.name, true)}
                     </div>
                   ))}
@@ -284,11 +350,8 @@ const [visibleCoins, setVisibleCoins] = useState(16);
 
                 {visibleCoins < coins.length && (
                   <div style={{ textAlign: 'center', marginTop: '50px', marginBottom: '30px' }}>
-                    <button 
-                      className="load-more-btn pulsing-btn" 
-                      onClick={() => setVisibleCoins(coins.length)} /* ТУТ ЗМІНА 2: Показує ВСІ монети одразу */
-                    >
-                      Розгорнути весь список
+                    <button className="load-more-btn pulsing-btn" onClick={() => setVisibleCoins(coins.length)}>
+                      Розгорнути список ({coins.length} монет)
                     </button>
                   </div>
                 )}
@@ -296,7 +359,6 @@ const [visibleCoins, setVisibleCoins] = useState(16);
             </>
           } />
 
-          {/* НОВИЙ МАРШРУТ ДЛЯ СТОРІНКИ ОБРАНОГО */}
           <Route path="/favorites" element={
             <Favorites 
               favorites={favorites} 
@@ -313,13 +375,15 @@ const [visibleCoins, setVisibleCoins] = useState(16);
             coinId={selectedCoin} 
             data={prices[selectedCoin]} 
             onClose={() => setSelectedCoin(null)} 
+            favorites={favorites} 
+            toggleFavorite={toggleFavorite}
           />
         )}
-{toast.show && (
-  <div className="toast-notification">
-    {toast.isAdd ? '✅' : '🗑️'} {toast.message}
-  </div>
-)}
+        {toast.show && (
+          <div className="toast-notification">
+            {toast.isAdd ? '✅' : '🗑️'} {toast.message}
+          </div>
+        )}
       </div>
     </Router>
   );

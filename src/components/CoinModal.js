@@ -55,7 +55,7 @@ const crosshairPlugin = {
   }
 };
 
-const CoinModal = ({ coinId, data, onClose }) => {
+const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite }) => {
   const [usdAmount, setUsdAmount] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [chartHistory, setChartHistory] = useState([]);
@@ -109,6 +109,7 @@ const CoinModal = ({ coinId, data, onClose }) => {
 
   const isPositive = parseFloat(data?.change) >= 0;
   const priceColor = isPositive ? CHART_GREEN : CHART_RED;
+  const isFavorite = favorites.includes(coinId.toUpperCase());
 
   const prices = chartHistory.map(item => item[1]);
   const labels = chartHistory.map(item => {
@@ -130,20 +131,17 @@ const CoinModal = ({ coinId, data, onClose }) => {
         data: prices,
         fill: true,
         tension: 0.3,
-        // 🔥 РОЗУМНІ КРАПКИ: Live-крапка, Max-крапка і Min-крапка
         pointRadius: (context) => {
           const idx = context.dataIndex;
-          if (idx === prices.length - 1) return 5; // Поточна ціна
-          if (idx === maxIndex || idx === minIndex) return 4; // Екстремуми
-          return 0; // Всі інші ховаємо
+          if (idx === prices.length - 1) return 5;
+          if (idx === maxIndex || idx === minIndex) return 4;
+          return 0;
         },
         pointBackgroundColor: (context) => {
           const idx = context.dataIndex;
-          if (idx === prices.length - 1) return '#f7931a'; // Оранжевий для Live
-          if (idx === maxIndex) return CHART_GREEN; // Зелений для Max
-          if (idx === minIndex) return CHART_RED; // Червоний для Min
-          
-          // ДЛЯ НАВЕДЕННЯ (HOVER): Обчислюємо локальний тренд (зелений чи червоний)
+          if (idx === prices.length - 1) return '#f7931a';
+          if (idx === maxIndex) return CHART_GREEN;
+          if (idx === minIndex) return CHART_RED;
           if (idx > 0) {
             return prices[idx] >= prices[idx - 1] ? CHART_GREEN : CHART_RED;
           }
@@ -151,9 +149,7 @@ const CoinModal = ({ coinId, data, onClose }) => {
         },
         pointBorderColor: (context) => {
           const idx = context.dataIndex;
-          if (idx === prices.length - 1 || idx === maxIndex || idx === minIndex) return '#fff'; // Біла обводка для головних крапок
-          
-          // Для наведення
+          if (idx === prices.length - 1 || idx === maxIndex || idx === minIndex) return '#fff';
           if (idx > 0) {
             return prices[idx] >= prices[idx - 1] ? CHART_GREEN : CHART_RED;
           }
@@ -207,12 +203,11 @@ const CoinModal = ({ coinId, data, onClose }) => {
         borderColor: '#2b3139',
         borderWidth: 1,
         padding: 10,
-        displayColors: true, // Вмикаємо квадратики в тултипі
+        displayColors: true,
         filter: function(tooltipItem) {
           return tooltipItem.datasetIndex === 0; 
         },
         callbacks: {
-          // 🎨 Колір квадратика в підказці тепер відповідає ЛОКАЛЬНОМУ тренду
           labelColor: function(context) {
             const idx = context.dataIndex;
             let color = priceColor;
@@ -235,7 +230,6 @@ const CoinModal = ({ coinId, data, onClose }) => {
             
             return `Загальний: ${sign}${diffPercent.toFixed(2)}% | $${currentVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}`;
           },
-          // ⚡ ДРУГИЙ РЯДОК: Показує рух ціни за останні 5 хвилин
           afterLabel: (context) => {
             const idx = context.dataIndex;
             if (idx > 0) {
@@ -315,8 +309,21 @@ const CoinModal = ({ coinId, data, onClose }) => {
                 <img src={data.image} alt={coinId} className="modal-icon" style={{ width: '45px', height: '45px', borderRadius: '50%' }} />
               )}
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {coinId.toUpperCase()} <span style={{ color: '#aaa', fontSize: '1rem', fontWeight: 'normal' }}>ДЕТАЛІ</span>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {coinId.toUpperCase()}
+                  
+                  {/* 🔥 ОСЬ ВЖЕ ДОДАНА КНОПКА ЗІРОЧКИ */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (toggleFavorite) toggleFavorite(coinId.toUpperCase());
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: isFavorite ? '#f7931a' : '#444', padding: 0, marginTop: '-2px' }}
+                  >
+                    {isFavorite ? '★' : '☆'}
+                  </button>
+
+                  <span style={{ color: '#aaa', fontSize: '1rem', fontWeight: 'normal', marginLeft: '5px' }}>ДЕТАЛІ</span>
                 </h2>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '5px' }}>
                   <span style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#fff' }}>
