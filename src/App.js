@@ -17,6 +17,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState(''); 
   const [toast, setToast] = useState({ show: false, message: '', isAdd: true });
 const [isPulsing, setIsPulsing] = useState(false);
+const [visibleCoins, setVisibleCoins] = useState(16);
 
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('myFavorites');
@@ -31,7 +32,7 @@ const [isPulsing, setIsPulsing] = useState(false);
    const fetchTop50 = async () => {
     try {
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false&_t=${Date.now()}`
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&_t=${Date.now()}`
       );
       const data = await response.json();
 
@@ -270,10 +271,27 @@ const [isPulsing, setIsPulsing] = useState(false);
               </div>
 
               <div className="popular-section">
-                <h2 className="section-title">Весь ринок (Топ-50)</h2>
+                <h2 className="section-title">Весь ринок</h2>
+                
                 <div className="popular-grid">
-                {coins.map(coin => renderCard(coin.symbol.toUpperCase(), coin.name, true))}
+                  {/* ТУТ ЗМІНА 1: Додаємо клас fade-in-item для плавної появи нових карток */}
+                  {coins.slice(0, visibleCoins).map((coin, index) => (
+                    <div key={coin.id} className={index >= 16 ? 'fade-in-item' : ''} style={{ animationDelay: `${(index - 20) * 0.05}s` }}>
+                      {renderCard(coin.symbol.toUpperCase(), coin.name, true)}
+                    </div>
+                  ))}
                 </div>
+
+                {visibleCoins < coins.length && (
+                  <div style={{ textAlign: 'center', marginTop: '50px', marginBottom: '30px' }}>
+                    <button 
+                      className="load-more-btn pulsing-btn" 
+                      onClick={() => setVisibleCoins(coins.length)} /* ТУТ ЗМІНА 2: Показує ВСІ монети одразу */
+                    >
+                      Розгорнути весь список
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           } />

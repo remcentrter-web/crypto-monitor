@@ -138,12 +138,12 @@ function Home({ coins = [] }) {
             Дослідити ринок 🚀
           </Link>
 
+          {/* Оновлений блок стрілки, піднятий вище */}
           <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', 
-            justifyContent: 'center', height: '30vh', 
-            marginBottom: '40px'
+            display: 'flex', justifyContent: 'center', width: '100%', 
+            marginTop: '40px', /* Відступ від кнопки "Дослідити ринок" */
+            marginBottom: '60px' /* Відступ до заголовку "Лідери ринку" */
           }}>
-            <div style={{ flex: 1 }}></div>
             <div 
               onClick={scrollToLeaders}
               style={{
