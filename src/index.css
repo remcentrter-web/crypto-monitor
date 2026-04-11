@@ -1,13 +1,51 @@
+/* 1. Базові налаштування */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background-color: #0d1117;
+  color: white;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+/* 2. Прибираємо ТІЛЬКИ ті білі лінії, що заважали */
+/* Ми цілимося в шапку та головні блоки, не чіпаючи все інше */
+.navbar, nav, header, .nav-container, .App-header {
+  border-bottom: none !important;
+  box-shadow: none !important;
 }
+
+/* Прибираємо лінії в розділах, але дозволяємо карткам мати свій border */
+.favorites-page-container, .alerts-page-wrapper {
+  border: none !important;
+}
+
+/* 3. Стильний скроллбар */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117; 
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2b3139; 
+  border-radius: 10px;
+  border: 2px solid #0d1117;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444c56;
+}
+
+/* Для Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2b3139 #0d1117;
+}
+
+/* 4. Кольори для тексту (якщо вони десь пропали) */
+.up { color: #00c087 !important; }
+.down { color: #ff4343 !important; }

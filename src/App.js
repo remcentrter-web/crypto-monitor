@@ -6,6 +6,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Home from './pages/Home';
 import Market from './pages/Market';
 import Favorites from './pages/Favorites';
+import Alerts from './pages/Alerts';
 
 function App() {
   const [prices, setPrices] = useState({});
@@ -30,7 +31,88 @@ function App() {
   useEffect(() => {
     localStorage.setItem('myFavorites', JSON.stringify(favorites));
   }, [favorites]);
+// --- ПАМ'ЯТЬ ДЛЯ СПОВІЩЕНЬ ---
+  const [alerts, setAlerts] = useState(() => {
+    const saved = localStorage.getItem('myAlerts');
+    return saved ? JSON.parse(saved) : [];
+  });
+const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГА для сповіщень
+// Створюємо пам'ять для архіву (історія)
+  const [alertHistory, setAlertHistory] = useState(() => {
+    const saved = localStorage.getItem('myAlertHistory');
+    return saved ? JSON.parse(saved) : [];
+  });
 
+  // Автоматичне збереження історії в браузері
+  useEffect(() => {
+    localStorage.setItem('myAlertHistory', JSON.stringify(alertHistory));
+  }, [alertHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('myAlerts', JSON.stringify(alerts));
+  }, [alerts]);
+
+  const handleAddAlert = (coinId, targetPrice, type) => {
+    const newAlert = { id: Date.now(), coinId, targetPrice: parseFloat(targetPrice), type };
+    setAlerts(prev => [...prev, newAlert]);
+    
+    // Показуємо зелену виїжджаючу плашку (Toast), що все збережено
+    setToast({ show: true, message: `Сповіщення для ${coinId} створено! 🔔`, isAdd: true });
+    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+  };
+// Функція для зміни ціни в існуючому сповіщенні
+  const handleEditAlert = (id, newPrice) => {
+    setAlerts(prev => prev.map(a => a.id === id ? { ...a, targetPrice: parseFloat(newPrice) } : a));
+  };
+  // -----------------------------
+
+ // 👀 НАГЛЯДАЧ ЗА ЦІНАМИ
+  useEffect(() => {
+    if (alerts.length === 0 || Object.keys(prices).length === 0) return;
+
+    let alertsToKeep = [];
+    let newlyTriggered = []; // Збираємо всі сповіщення, які спрацювали одночасно
+
+    alerts.forEach(alertItem => {
+      const coinData = prices[alertItem.coinId];
+      if (!coinData) {
+        alertsToKeep.push(alertItem);
+        return;
+      }
+
+      const currentPrice = parseFloat(coinData.price);
+      
+      // Якщо чекали росту або падіння
+      if (alertItem.type === 'up' && currentPrice >= alertItem.targetPrice) {
+        newlyTriggered.push({ ...alertItem, currentPrice });
+      } 
+      else if (alertItem.type === 'down' && currentPrice <= alertItem.targetPrice) {
+        newlyTriggered.push({ ...alertItem, currentPrice });
+      } 
+      else {
+        alertsToKeep.push(alertItem); 
+      }
+    });
+
+    // Якщо є хоча б одне спрацьоване, додаємо їх У ЧЕРГУ
+  if (newlyTriggered.length > 0) {
+      // 📝 Створюємо записи для історії (додаємо дату та час)
+      const triggeredWithTime = newlyTriggered.map(item => ({
+        ...item,
+        time: new Date().toLocaleTimeString(),
+        date: new Date().toLocaleDateString()
+      }));
+      
+      // Додаємо в історію (зберігаємо лише останні 20 штук)
+      setAlertHistory(prev => [...triggeredWithTime, ...prev].slice(0, 20));
+      
+      // Відправляємо в чергу для показу вікна
+      setActiveAlertsQueue(prevQueue => [...prevQueue, ...newlyTriggered]);
+      
+      // Видаляємо активовані сповіщення зі списку
+      setAlerts(alertsToKeep);
+    }
+  }, [prices,alerts]);
   useEffect(() => {
    const fetchTop50 = async () => {
     try {
@@ -207,7 +289,26 @@ function App() {
           <div style={{ display: 'flex', gap: '15px', marginLeft: '30px', alignItems: 'center' }}>
             <Link to="/" className="nav-link-btn">Головна</Link>
             <Link to="/market" className="nav-link-btn">Ринок</Link>
-          <Link to="/favorites" className={`nav-link-btn ${isPulsing ? 'pulse-nav' : ''}`}>⭐ Обране</Link>
+          <Link to="/favorites" className={`nav-link-btn ${isPulsing ? 'pulse-nav' : ''}`}> Обране</Link>
+          <Link to="/alerts" className="nav-link-btn" style={{ position: 'relative' }}>
+   Сповіщення
+  {alerts.length > 0 && (
+    <span style={{ 
+      position: 'absolute', 
+      top: '-8px', 
+      right: '-12px', 
+      background: '#ff4343', 
+      color: 'white', 
+      fontSize: '10px', 
+      padding: '2px 6px', 
+      borderRadius: '10px',
+      fontWeight: 'bold',
+      boxShadow: '0 0 10px rgba(255,67,67,0.3)'
+    }}>
+      {alerts.length}
+    </span>
+  )}
+</Link>
           </div>
 
           <div style={{ position: 'relative', margin: '0 auto' }}>
@@ -360,6 +461,7 @@ function App() {
           } />
 
           <Route path="/favorites" element={
+            
             <Favorites 
               favorites={favorites} 
               prices={prices} 
@@ -367,6 +469,7 @@ function App() {
               setFavorites={setFavorites} 
             />
           } />
+          <Route path="/alerts" element={<Alerts alerts={alerts} setAlerts={setAlerts} prices={prices} history={alertHistory} onEdit={handleEditAlert} />} />
 
         </Routes>
 
@@ -377,8 +480,85 @@ function App() {
             onClose={() => setSelectedCoin(null)} 
             favorites={favorites} 
             toggleFavorite={toggleFavorite}
+            handleAddAlert={handleAddAlert}
           />
         )}
+      {/* 🚨 ІДЕАЛЬНЕ, АНІМОВАНЕ СПОВІЩЕННЯ (З ЧЕРГОЮ) 🚨 */}
+        {activeAlertsQueue.length > 0 && (
+          (() => {
+            const currentAlert = activeAlertsQueue[0]; // Беремо ПЕРШЕ сповіщення з черги
+            
+            return (
+              <div className="modal-overlay" style={{ zIndex: 9999 }}>
+                <div className="modal-content" style={{ 
+                  maxWidth: '320px', 
+                  textAlign: 'center', 
+                  borderRadius: '20px', 
+                  border: 'none', 
+                  animation: 'modalRevealAlert 0.4s ease-out forwards, modalPulseAlertShadow 3s infinite 0.4s',
+                  boxShadow: `0 0 40px ${currentAlert.type === 'up' ? 'rgba(0,192,135,0.15)' : 'rgba(255,67,67,0.15)'}`,
+                  padding: '30px'
+                }}>
+                  
+                  <div style={{ fontSize: '3.5rem', marginBottom: '10px' }}>
+                    {currentAlert.type === 'up' ? '📈' : '📉'}
+                  </div>
+                  
+                  <h2 style={{ margin: '0 0 10px 0', color: '#fff', fontSize: '1.4rem', fontWeight: 'bold' }}>
+                    Цінове сповіщення
+                  </h2>
+                  
+                  <p style={{ fontSize: '1rem', color: '#aaa', marginBottom: '25px', lineHeight: '1.4' }}>
+                    Програма зафіксувала, що <strong style={{ color: '#fff' }}>{currentAlert.coinId}</strong> перетнув відмітку <strong style={{ color: currentAlert.type === 'up' ? '#00c087' : '#ff4343' }}>${currentAlert.targetPrice}</strong>!
+                  </p>
+                  
+                  <div style={{ background: '#12161c', padding: '15px', borderRadius: '15px', marginBottom: '25px', border: '1px solid #2b3139' }}>
+                    <span style={{ color: '#8e9eaf', fontSize: '0.85rem' }}>Поточна ринкова ціна:</span>
+                    <br/>
+                    <strong style={{ fontSize: '1.6rem', color: '#fff' }}>${currentAlert.currentPrice}</strong>
+                  </div>
+
+                  <button 
+                    // 🔥 ПРИ КЛІКУ: Видаляємо поточне з черги, і якщо там є ще одне, воно одразу з'явиться!
+                    onClick={() => setActiveAlertsQueue(prev => prev.slice(1))}
+                    style={{ 
+                      width: '100%', 
+                      padding: '12px', 
+                      background: '#fff', 
+                      color: '#000', 
+                      border: 'none', 
+                      borderRadius: '15px', 
+                      fontSize: '1rem', 
+                      fontWeight: 'bold', 
+                      cursor: 'pointer', 
+                      transition: 'all 0.2s' 
+                    }}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.03)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    Зрозуміло, дякую!
+                  </button>
+                  
+                </div>
+              </div>
+            );
+          })()
+        )}
+
+        {/* --- Анімації --- */}
+        <style>
+          {`
+            @keyframes modalRevealAlert {
+              0% { opacity: 0; transform: scale(0.8) translateY(-20px); }
+              100% { opacity: 1; transform: scale(1) translateY(0); }
+            }
+
+            @keyframes modalPulseAlertShadow {
+              0%, 100% { boxShadow: 0 0 40px ${activeAlertsQueue[0]?.type === 'up' ? 'rgba(0,192,135,0.15)' : 'rgba(255,67,67,0.15)'}; }
+              50% { boxShadow: 0 0 50px ${activeAlertsQueue[0]?.type === 'up' ? 'rgba(0,192,135,0.25)' : 'rgba(255,67,67,0.25)'}; }
+            }
+          `}
+        </style>
         {toast.show && (
           <div className="toast-notification">
             {toast.isAdd ? '✅' : '🗑️'} {toast.message}

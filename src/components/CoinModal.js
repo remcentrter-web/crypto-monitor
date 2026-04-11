@@ -55,8 +55,10 @@ const crosshairPlugin = {
   }
 };
 
-const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite }) => {
+// 🔥 ОСЬ ТУТ ДОДАНО handleAddAlert
+const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, handleAddAlert }) => {
   const [usdAmount, setUsdAmount] = useState('');
+  const [alertPrice, setAlertPrice] = useState(''); 
   const [isLoading, setIsLoading] = useState(true);
   const [chartHistory, setChartHistory] = useState([]);
   
@@ -117,7 +119,6 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite }) =>
     return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
   });
 
-  // Знаходимо індекси найвищої і найнижчої ціни
   const maxPrice = Math.max(...prices);
   const minPrice = Math.min(...prices);
   const maxIndex = prices.indexOf(maxPrice);
@@ -312,7 +313,6 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite }) =>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {coinId.toUpperCase()}
                   
-                  {/* 🔥 ОСЬ ВЖЕ ДОДАНА КНОПКА ЗІРОЧКИ */}
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -343,13 +343,10 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite }) =>
           </div>
 
           <div className="modal-main-row" style={{ marginTop: '20px' }}>
-            
             <div className="modal-chart-container" style={{ display: 'flex', flexDirection: 'column' }}>
-              
               <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#aaa', marginBottom: '10px' }}>
                 *Крутіть коліщатко для наближення. Двічі клікніть, щоб скинути масштаб.
               </div>
-              
               <div style={{ height: '300px', width: '100%', cursor: 'crosshair' }} onDoubleClick={handleDoubleClick}>
                 {isLoading ? (
                   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>
@@ -389,32 +386,78 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite }) =>
                 <strong className="stat-value" style={{ color: '#f7931a' }}>${data?.ath?.toLocaleString() || '---'}</strong>
               </div>
             </div>
-
           </div>
 
-          <div className="calculator-section">
-            <h3>Калькулятор</h3>
-            <div className="calc-input-group">
-              <input 
-                type="number" 
-                placeholder="Введіть суму в USD" 
-                value={usdAmount}
-                min="0"
-                onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val >= 0 || val === '') setUsdAmount(val);
-                }}
-              />
-              <span className="currency-label">USD</span>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
             
-            <div className="calc-results-container">
-              <p className="calc-result">Ви отримаєте: <strong>{cryptoAmount} {coinId.toUpperCase()}</strong></p>
-              <p className="calc-result uah-style" style={{ color: '#aaa', marginTop: '5px' }}>
-                В гривнях (UAH): <strong style={{ color: 'white' }}>~{(usdAmount * 40.2).toLocaleString()} ₴</strong>
-              </p>
+            <div className="calculator-section" style={{ margin: 0 }}>
+              <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Калькулятор</h3>
+              <div className="calc-input-group">
+                <input 
+                  type="number" 
+                  placeholder="Введіть суму в USD" 
+                  value={usdAmount}
+                  min="0"
+                  onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val >= 0 || val === '') setUsdAmount(val);
+                  }}
+                />
+                <span className="currency-label">USD</span>
+              </div>
+              
+              <div className="calc-results-container">
+                <p className="calc-result">Ви отримаєте: <strong>{cryptoAmount} {coinId.toUpperCase()}</strong></p>
+                <p className="calc-result uah-style" style={{ color: '#aaa', marginTop: '5px' }}>
+                  В гривнях (UAH): <strong style={{ color: 'white' }}>~{(usdAmount * 40.2).toLocaleString()} ₴</strong>
+                </p>
+              </div>
             </div>
+
+            <div className="calculator-section" style={{ margin: 0, border: '1px solid #2b3139', background: '#15191e' }}>
+              <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Сповіщення ціни</h3>
+              <div className="calc-input-group">
+                <input 
+                  type="number" 
+                  placeholder={`Напр. ${(currentPrice * 1.05).toFixed(currentPrice < 1 ? 4 : 0)}...`}
+                  value={alertPrice}
+                  min="0"
+                  onChange={(e) => setAlertPrice(e.target.value)}
+                />
+                <span className="currency-label">USD</span>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                <button 
+                  onClick={() => {
+                    if (alertPrice && alertPrice > 0) {
+                      if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), alertPrice, 'up');
+                      setAlertPrice(''); 
+                    }
+                  }}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(0, 192, 135, 0.1)', color: '#00c087', border: '1px solid #00c087', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.2)'}
+                  onMouseLeave={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.1)'}
+                >
+                  📈 Вище
+                </button>
+                <button 
+                  onClick={() => {
+                    if (alertPrice && alertPrice > 0) {
+                      if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), alertPrice, 'down');
+                      setAlertPrice(''); 
+                    }
+                  }}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(255, 67, 67, 0.1)', color: '#ff4343', border: '1px solid #ff4343', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.2)'}
+                  onMouseLeave={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.1)'}
+                >
+                  📉 Нижче
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
