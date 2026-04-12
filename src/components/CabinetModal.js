@@ -11,29 +11,54 @@ const PRESET_AVATARS = [
   "https://api.dicebear.com/8.x/bottts/svg?seed=ADA&backgroundColor=1e2329"
 ];
 
+// Повний словник перекладів для всіх розділів
+const translations = {
+  ua: {
+    menuProfile: "👤 Профіль", menuStats: "📊 Активність", menuSec: "🔒 Безпека", menuSet: "⚙️ Налаштування", menuSup: "🎧 Підтримка", menuAbout: "🚀 Про додаток", logout: "Вийти з акаунта",
+    profTitle: "Мій профіль", nickLabel: "Ваш нікнейм", avaLabel: "Швидкий вибір аватара", urlLabel: "Або вставте посилання", saveBtn: "Зберегти зміни", saving: "Збереження...",
+    statTitle: "Аналітика акаунта", statFav: "Обраних монет", statAlert: "Сповіщень", statLog: "Журнал подій", log1: "Успішна авторизація", log2: "Синхронізація з хмарою", log3: "Оновлення котирувань",
+    secTitle: "Безпека", secEmail: "Електронна пошта", secEmailDesc: "Основний ідентифікатор", secPass: "Новий пароль", secPassDesc: "Мінімум 6 символів", secUpdate: "Оновити дані",
+    setTitle: "Загальні налаштування", setLang: "Мова інтерфейсу", setCur: "Основна валюта", setTheme: "Тема оформлення", themeDark: "Темна", themeLight: "Світла",
+    supTitle: "Підтримка", supPlace: "Опишіть проблему або залиште побажання...", supBtn: "Надіслати повідомлення",
+    abTitle: "Про Crypto Monitor", abP1: "Твій персональний термінал для аналізу ринку.", abF1: "Швидкість React ⚡", abF1d: "Миттєве завантаження.", abF2: "Надійність Firebase 🔒", abF2d: "Твої дані в безпеці.", abF3: "Точність CoinGecko 📈", abF3d: "Ціни в реальному часі.", abFoot: "Розроблено для трейдерів. Версія 2.0"
+  },
+  en: {
+    menuProfile: "👤 Profile", menuStats: "📊 Activity", menuSec: "🔒 Security", menuSet: "⚙️ Settings", menuSup: "🎧 Support", menuAbout: "🚀 About", logout: "Logout",
+    profTitle: "My Profile", nickLabel: "Nickname", avaLabel: "Quick Avatar Select", urlLabel: "Or paste image URL", saveBtn: "Save Changes", saving: "Saving...",
+    statTitle: "Account Analytics", statFav: "Favorite Coins", statAlert: "Active Alerts", statLog: "Event Log", log1: "Successful login", log2: "Cloud synchronization", log3: "Price quotes updated",
+    secTitle: "Security", secEmail: "Email Address", secEmailDesc: "Primary identifier", secPass: "New Password", secPassDesc: "Minimum 6 characters", secUpdate: "Update Security",
+    setTitle: "General Settings", setLang: "Interface Language", setCur: "Main Currency", setTheme: "Theme", themeDark: "Dark", themeLight: "Light",
+    supTitle: "Support", supPlace: "Describe your issue or leave feedback...", supBtn: "Send Message",
+    abTitle: "About Crypto Monitor", abP1: "Your personal terminal for market analysis.", abF1: "React Speed ⚡", abF1d: "Instant loading.", abF2: "Firebase Security 🔒", abF2d: "Your data is safe.", abF3: "CoinGecko Accuracy 📈", abF3d: "Real-time pricing.", abFoot: "Built for traders. Version 2.0"
+  }
+};
+
 const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) => {
   const [activeSection, setActiveSection] = useState('profile');
+  const [lang, setLang] = useState('ua'); 
+  const t = translations[lang]; 
+
   const [newName, setNewName] = useState(user?.displayName || '');
   const [newPhoto, setNewPhoto] = useState(user?.photoURL || '');
   const [newEmail, setNewEmail] = useState(user?.email || '');
   const [newPassword, setNewPassword] = useState('');
   const [supportMsg, setSupportMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' }); // Заміна alert
+  const [statusMsg, setStatusMsg] = useState({ text: '', type: '' });
 
   if (!user) return null;
 
-  const showStatus = (text, type = 'success') => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+  const notify = (text, type = 'success') => {
+    setStatusMsg({ text, type });
+    setTimeout(() => setStatusMsg({ text: '', type: '' }), 3000);
   };
 
   const handleUpdateProfile = async () => {
     setIsSaving(true);
     try {
       await updateProfile(user, { displayName: newName, photoURL: newPhoto });
-      showStatus('Профіль успішно оновлено!');
-    } catch (err) { showStatus('Помилка: ' + err.message, 'error'); }
+      notify(lang === 'ua' ? 'Профіль оновлено!' : 'Profile updated!');
+    } catch (err) { notify('Error', 'error'); }
     setIsSaving(false);
   };
 
@@ -42,11 +67,9 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
     try {
       if (newEmail !== user.email) await updateEmail(user, newEmail);
       if (newPassword) await updatePassword(user, newPassword);
-      showStatus('Дані входу оновлено!');
+      notify(lang === 'ua' ? 'Безпеку оновлено!' : 'Security updated!');
       setNewPassword('');
-    } catch (err) { 
-      showStatus('Для зміни безпеки потрібно перелогінитись!', 'error'); 
-    }
+    } catch (err) { notify(lang === 'ua' ? 'Потрібно перелогінитись!' : 'Relogin required!', 'error'); }
     setIsSaving(false);
   };
 
@@ -58,52 +81,56 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
         <div className="cab-sidebar">
           <div className="cab-sidebar-user">
             <img src={user.photoURL || PRESET_AVATARS[0]} alt="Avatar" />
-            <div className="user-info-text">
-              <span className="user-name-sidebar">{user.displayName || 'Трейдер'}</span>
-              <span className="user-status-sidebar">Online</span>
+            <div className="cab-user-meta">
+              <span className="cab-username">{user.displayName || 'Trader'}</span>
+              <span className="cab-status-online">Online</span>
             </div>
           </div>
           
           <nav className="cab-menu">
-            <button className={activeSection === 'profile' ? 'active' : ''} onClick={() => setActiveSection('profile')}>👤 Профіль</button>
-            <button className={activeSection === 'stats' ? 'active' : ''} onClick={() => setActiveSection('stats')}>📊 Активність</button>
-            <button className={activeSection === 'security' ? 'active' : ''} onClick={() => setActiveSection('security')}>🔒 Безпека</button>
-            <button className={activeSection === 'settings' ? 'active' : ''} onClick={() => setActiveSection('settings')}>⚙️ Налаштування</button>
-            <button className={activeSection === 'support' ? 'active' : ''} onClick={() => setActiveSection('support')}>🎧 Підтримка</button>
-            <button className={activeSection === 'about' ? 'active' : ''} onClick={() => setActiveSection('about')}>🚀 Про додаток</button>
+            <button className={activeSection === 'profile' ? 'active' : ''} onClick={() => setActiveSection('profile')}>{t.menuProfile}</button>
+            <button className={activeSection === 'stats' ? 'active' : ''} onClick={() => setActiveSection('stats')}>{t.menuStats}</button>
+            <button className={activeSection === 'security' ? 'active' : ''} onClick={() => setActiveSection('security')}>{t.menuSec}</button>
+            <button className={activeSection === 'settings' ? 'active' : ''} onClick={() => setActiveSection('settings')}>{t.menuSet}</button>
+            <button className={activeSection === 'support' ? 'active' : ''} onClick={() => setActiveSection('support')}>{t.menuSup}</button>
+            <button className={activeSection === 'about' ? 'active' : ''} onClick={() => setActiveSection('about')}>{t.menuAbout}</button>
           </nav>
 
-          <button className="sidebar-logout" onClick={onLogout}>Вийти з системи</button>
+          <button className="cab-logout-btn" onClick={onLogout}>{t.logout}</button>
         </div>
 
         {/* MAIN CONTENT */}
         <div className="cab-main">
-          <button className="cab-close-btn" onClick={onClose}>&times;</button>
+          <button className="cab-x-close" onClick={onClose}>&times;</button>
           
-          {/* Кастомний Алерт */}
-          {message.text && <div className={`cab-status-msg ${message.type}`}>{message.text}</div>}
+          {statusMsg.text && <div className={`cab-toast ${statusMsg.type}`}>{statusMsg.text}</div>}
 
-          <div className="cab-section-content fade-in">
+          <div className="cab-content-area">
             
             {/* ПРОФІЛЬ */}
             {activeSection === 'profile' && (
-              <div className="section-inner">
-                <h2 className="section-title">Налаштування профілю</h2>
-                <div className="profile-edit-grid">
-                  <div className="avatar-preview-big">
+              <div className="cab-section-inner cab-fade-in">
+                <h2 className="cab-h2">{t.profTitle}</h2>
+                <div className="cab-profile-grid">
+                  <div className="cab-avatar-big">
                     <img src={newPhoto || user.photoURL || PRESET_AVATARS[0]} alt="Preview" />
                   </div>
-                  <div className="edit-inputs">
-                    <label>Ваш нікнейм</label>
-                    <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} />
-                    <label>Швидкий вибір аватара</label>
-                    <div className="avatar-mini-gallery">
+                  <div className="cab-inputs-group">
+                    <label className="cab-label">{t.nickLabel}</label>
+                    <input className="cab-input" type="text" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                    
+                    <label className="cab-label">{t.avaLabel}</label>
+                    <div className="cab-mini-gallery">
                       {PRESET_AVATARS.map((url, i) => (
                         <img key={i} src={url} className={newPhoto === url ? 'selected' : ''} onClick={() => setNewPhoto(url)} alt="preset"/>
                       ))}
                     </div>
-                    <button className="save-btn" onClick={handleUpdateProfile} disabled={isSaving}>
-                        {isSaving ? 'Збереження...' : 'Зберегти зміни'}
+
+                    <label className="cab-label">{t.urlLabel}</label>
+                    <input className="cab-input" type="text" value={newPhoto} onChange={(e) => setNewPhoto(e.target.value)} placeholder="https://..." />
+                    
+                    <button className="cab-save-btn" onClick={handleUpdateProfile} disabled={isSaving}>
+                        {isSaving ? t.saving : t.saveBtn}
                     </button>
                   </div>
                 </div>
@@ -112,86 +139,70 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
 
             {/* АКТИВНІСТЬ */}
             {activeSection === 'stats' && (
-              <div className="section-inner">
-                <h2 className="section-title">Твоя активність</h2>
-                <div className="stats-dashboard">
-                  <div className="stat-box-small">
-                    <span className="stat-icon">⭐</span>
-                    <div className="stat-info">
-                      <span className="val">{favoritesCount}</span>
-                      <span className="lab">Улюблених монет</span>
-                    </div>
+              <div className="cab-section-inner cab-fade-in">
+                <h2 className="cab-h2">{t.statTitle}</h2>
+                <div className="cab-pro-dashboard">
+                  <div className="cab-pro-stat-card">
+                    <span className="cab-pro-label">{t.statFav}</span>
+                    <span className="cab-pro-value">{favoritesCount}</span>
+                    <div className="cab-pro-bar"><div className="cab-pro-fill fav-fill"></div></div>
                   </div>
-                  <div className="stat-box-small">
-                    <span className="stat-icon">🔔</span>
-                    <div className="stat-info">
-                      <span className="val">{alertsCount}</span>
-                      <span className="lab">Активних сповіщень</span>
-                    </div>
+                  <div className="cab-pro-stat-card">
+                    <span className="cab-pro-label">{t.statAlert}</span>
+                    <span className="cab-pro-value">{alertsCount}</span>
+                    <div className="cab-pro-bar"><div className="cab-pro-fill alert-fill"></div></div>
                   </div>
                 </div>
                 
-                <h3 className="sub-title">Останні дії</h3>
-                <div className="activity-list">
-                    <div className="activity-item">
-                        <span className="act-dot green"></span>
-                        <p>Ви авторизувалися в системі <span>(Зараз)</span></p>
-                    </div>
-                    <div className="activity-item">
-                        <span className="act-dot blue"></span>
-                        <p>Ваш список обраного оновлено <span>(Сьогодні)</span></p>
-                    </div>
-                    <div className="activity-item">
-                        <span className="act-dot orange"></span>
-                        <p>Перегляд ринкової статистики <span>(Вчора)</span></p>
-                    </div>
+                <h3 className="cab-sub-title">{t.statLog}</h3>
+                <div className="cab-activity-log">
+                    <div className="cab-log-item"><span className="cab-dot green"></span> {t.log1}</div>
+                    <div className="cab-log-item"><span className="cab-dot blue"></span> {t.log2}</div>
+                    <div className="cab-log-item"><span className="cab-dot orange"></span> {t.log3}</div>
                 </div>
               </div>
             )}
 
             {/* БЕЗПЕКА */}
             {activeSection === 'security' && (
-              <div className="section-inner">
-                <h2 className="section-title">Безпека</h2>
-                <div className="security-container">
-                    <div className="security-row">
-                        <div className="sec-info">
-                            <h4>Електронна пошта</h4>
-                            <p>{user.email}</p>
-                        </div>
-                        <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Новий Email" />
+              <div className="cab-section-inner cab-fade-in">
+                <h2 className="cab-h2">{t.secTitle}</h2>
+                <div className="cab-security-box">
+                    <div className="cab-field-row">
+                        <div className="cab-field-info"><h4>{t.secEmail}</h4><p>{t.secEmailDesc}</p></div>
+                        <input className="cab-input" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
                     </div>
-                    <div className="security-row">
-                        <div className="sec-info">
-                            <h4>Новий пароль</h4>
-                            <p>Рекомендуємо 12+ символів</p>
-                        </div>
-                        <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
+                    <div className="cab-field-row">
+                        <div className="cab-field-info"><h4>{t.secPass}</h4><p>{t.secPassDesc}</p></div>
+                        <input className="cab-input" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
                     </div>
-                    <button className="save-btn wide" onClick={handleUpdateSecurity}>Оновити дані</button>
+                    <button className="cab-save-btn cab-wide" onClick={handleUpdateSecurity}>{t.secUpdate}</button>
                 </div>
               </div>
             )}
 
             {/* НАЛАШТУВАННЯ */}
             {activeSection === 'settings' && (
-              <div className="section-inner">
-                <h2 className="section-title">Загальні налаштування</h2>
-                <div className="settings-list">
-                    <div className="setting-item">
-                        <span>Основна валюта</span>
-                        <select className="cab-select">
-                            <option>USD ($)</option>
-                            <option>UAH (₴)</option>
+              <div className="cab-section-inner cab-fade-in">
+                <h2 className="cab-h2">{t.setTitle}</h2>
+                <div className="cab-settings-list">
+                    <div className="cab-setting-row">
+                        <span>{t.setLang}</span>
+                        <select className="cab-select-ui" value={lang} onChange={(e) => setLang(e.target.value)}>
+                            <option value="ua">Українська 🇺🇦</option>
+                            <option value="en">English 🇺🇸</option>
                         </select>
                     </div>
-                    <div className="setting-item">
-                        <span>Звукові сповіщення</span>
-                        <input type="checkbox" className="cab-toggle" defaultChecked />
+                    <div className="cab-setting-row">
+                        <span>{t.setCur}</span>
+                        <select className="cab-select-ui"><option>USD ($)</option><option>UAH (₴)</option></select>
                     </div>
-                    <div className="setting-item">
-                        <span>Показувати ціну в заголовку вкладки</span>
-                        <input type="checkbox" className="cab-toggle" />
+                    <div className="cab-setting-row">
+                        <span>{t.setTheme}</span>
+                        <select className="cab-select-ui">
+                            <option>{t.themeDark} 🌙</option>
+                            <option>{t.themeLight} ☀️</option>
+                        </select>
                     </div>
                 </div>
               </div>
@@ -199,20 +210,37 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
 
             {/* ПІДТРИМКА */}
             {activeSection === 'support' && (
-              <div className="section-inner">
-                <h2 className="section-title">Підтримка</h2>
-                <div className="support-card-ui">
+              <div className="cab-section-inner cab-fade-in">
+                <h2 className="cab-h2">{t.supTitle}</h2>
+                <div className="cab-support-ui">
                     <textarea 
-                        className="support-textarea" 
+                        className="cab-textarea" 
                         value={supportMsg} 
                         onChange={(e) => setSupportMsg(e.target.value)} 
-                        placeholder="Опишіть вашу проблему або пропозицію..."
+                        placeholder={t.supPlace}
                     />
-                    <button className="save-btn" onClick={() => {
-                        showStatus('Повідомлення надіслано в чергу обробки!');
-                        setSupportMsg('');
-                    }}>Надіслати тікет</button>
+                    {/* ТЕМНА ЗАОКРУГЛЕНА КНОПКА */}
+                    <button className="cab-dark-rounded-btn" onClick={() => { 
+                      notify(lang === 'ua' ? 'Надіслано!' : 'Sent!'); 
+                      setSupportMsg(''); 
+                    }}>
+                      {t.supBtn}
+                    </button>
                 </div>
+              </div>
+            )}
+
+            {/* ПРО ДОДАТОК */}
+            {activeSection === 'about' && (
+              <div className="cab-section-inner cab-about-reveal">
+                <h2 className="cab-h2">{t.abTitle}</h2>
+                <p className="cab-p-ani p-1">{t.abP1}</p>
+                <div className="cab-features-grid cab-anim-2">
+                  <div className="cab-feature-box"><h4>{t.abF1}</h4><p>{t.abF1d}</p></div>
+                  <div className="cab-feature-box"><h4>{t.abF2}</h4><p>{t.abF2d}</p></div>
+                  <div className="cab-feature-box"><h4>{t.abF3}</h4><p>{t.abF3d}</p></div>
+                </div>
+                <p className="cab-p-ani p-4 cab-about-footer">{t.abFoot}</p>
               </div>
             )}
 
