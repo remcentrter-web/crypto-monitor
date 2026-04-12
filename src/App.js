@@ -312,11 +312,22 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
           </div>
 
           <div style={{ position: 'relative', margin: '0 auto' }}>
-            <input 
+           <input 
               type="text" 
               placeholder="Пошук або фільтр..."   
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                // 🔥 ФІЛЬТР: Дозволяємо лише літери (українські, англійські) та пробіли
+                // Прибираємо цифри, +, -, та інші знаки
+             const cleanValue = e.target.value.replace(/[0-9+-]/g, '');
+                setSearchQuery(cleanValue);
+              }}
+              onKeyDown={(e) => {
+                // Додатковий захист: блокуємо натискання цифр та знаків на місці
+                if (/[0-9+-]/.test(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
               style={{ 

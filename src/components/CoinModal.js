@@ -19,7 +19,6 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 const CHART_GREEN = '#00c087'; 
 const CHART_RED = '#ff4343'; 
 
-// 🎯 2D-ПРИЦІЛ
 const crosshairPlugin = {
   id: 'crosshair',
   afterDraw: (chart) => {
@@ -55,12 +54,12 @@ const crosshairPlugin = {
   }
 };
 
-// 🔥 ОСЬ ТУТ ДОДАНО handleAddAlert
 const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, handleAddAlert }) => {
   const [usdAmount, setUsdAmount] = useState('');
   const [alertPrice, setAlertPrice] = useState(''); 
   const [isLoading, setIsLoading] = useState(true);
   const [chartHistory, setChartHistory] = useState([]);
+  const [showProChart, setShowProChart] = useState(false);
   
   const chartRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -297,6 +296,25 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
             70% { box-shadow: 0 0 0 6px rgba(247, 147, 26, 0); }
             100% { box-shadow: 0 0 0 0 rgba(247, 147, 26, 0); }
           }
+          .pro-chart-btn {
+            background: rgba(255, 255, 255, 0.05); 
+            color: #8e9eaf; 
+            border: 1px solid #2b3139; 
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+          }
+          .pro-chart-btn:hover {
+            background: rgba(255, 255, 255, 0.1); 
+            color: #fff; 
+            border-color: #444c56;
+          }
         `}
       </style>
 
@@ -336,10 +354,17 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(247, 147, 26, 0.1)', border: '1px solid rgba(247, 147, 26, 0.3)', padding: '6px 12px', borderRadius: '20px', color: '#f7931a', fontSize: '0.85rem', fontWeight: 'bold' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f7931a', animation: 'pulseLiveModal 2s infinite' }}></div>
-              ⚡ НАЖИВО (24Г)
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+              <button className="pro-chart-btn" onClick={() => setShowProChart(true)}>
+                📊 Проф. графік
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(247, 147, 26, 0.1)', border: '1px solid rgba(247, 147, 26, 0.3)', padding: '6px 12px', borderRadius: '20px', color: '#f7931a', fontSize: '0.85rem', fontWeight: 'bold', height: 'fit-content' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f7931a', animation: 'pulseLiveModal 2s infinite' }}></div>
+                ⚡ НАЖИВО (24Г)
+              </div>
             </div>
+
           </div>
 
           <div className="modal-main-row" style={{ marginTop: '20px' }}>
@@ -389,7 +414,6 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
-            
             <div className="calculator-section" style={{ margin: 0 }}>
               <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Калькулятор</h3>
               <div className="calc-input-group">
@@ -457,10 +481,53 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       </div>
+
+      {/* 🔥 ОНОВЛЕНЕ ПОВНОЕКРАННЕ ВІКНО 🔥 */}
+      {showProChart && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: '#0d1117', zIndex: 100000,
+          display: 'flex', flexDirection: 'column'
+        }}>
+          {/* Оновлена Шапка графіка */}
+          <div style={{ 
+            padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+            background: '#15191e', borderBottom: '1px solid #2b3139' 
+          }}>
+            <h2 style={{ margin: 0, color: '#fff', fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* 🔥 СМАЙЛИК ВИДАЛЕНО 🔥 */}
+              {coinId.toUpperCase()} / USD
+              {/* 🔥 СЛОВО TRADINGVIEW ВИДАЛЕНО 🔥 */}
+              <span style={{fontSize: '0.9rem', color: '#8e9eaf', fontWeight: 'normal'}}>Професійний термінал</span>
+            </h2>
+            <button
+              onClick={() => setShowProChart(false)}
+              style={{ 
+                background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', 
+                width: '40px', height: '40px', borderRadius: '50%', fontSize: '1.5rem', 
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: '0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#ff4343'}
+              onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+            >
+              &times;
+            </button>
+          </div>
+
+          <div style={{ flex: 1, width: '100%', background: '#131722' }}>
+            <iframe
+              title="TradingView Chart"
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_1&symbol=${coinId.toUpperCase()}USD&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=15191e&studies=[]&theme=dark&style=1&timezone=Europe/Kyiv&locale=uk`}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+      )}
     </>
   );
 };

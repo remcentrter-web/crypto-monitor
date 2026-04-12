@@ -90,6 +90,11 @@ const Alerts = ({ alerts, setAlerts, prices, history, onEdit }) => {
               className="no-spinners"
               value={tempPrice}
               onChange={(e) => setTempPrice(e.target.value)}
+              onKeyDown={(e) => {
+                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               style={{
                 width: '100%', boxSizing: 'border-box', padding: '16px', 
                 background: '#12161c', border: '1px solid #2b3139',
