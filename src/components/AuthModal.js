@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { auth } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  updateProfile, 
+  GoogleAuthProvider, 
+  signInWithPopup,
+  sendPasswordResetEmail 
+} from 'firebase/auth';
 import './AuthModal.css';
 
 const AuthModal = ({ onClose, onLoginSuccess }) => {
@@ -9,45 +16,68 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
+
+  // Вхід через Google
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      if (onLoginSuccess) onLoginSuccess();
+      onClose();
+    } catch (err) {
+      setError('Помилка входу через Google');
+      console.error(err);
+    }
+  };
+
+  // Скидання пароля
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('Спочатку введіть свій Email');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setInfoMessage( 'Інструкцію відправлено! Якщо листа немає, перевірте папку "Спам"');
+      setError('');
+    } catch (err) {
+      setError('Помилка: перевірте правильність Email');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setInfoMessage('');
 
     try {
       if (isLogin) {
-        // Логіка входу
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        // Логіка реєстрації
+        if (name.length < 2) {
+          setError("Ім'я занадто коротке");
+          return;
+        }
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // Оновлення імені в профілі Firebase
         await updateProfile(userCredential.user, { displayName: name });
       }
-      
       if (onLoginSuccess) onLoginSuccess();
       onClose();
     } catch (err) {
-      // Розумна розшифровка помилок Firebase
       switch (err.code) {
         case 'auth/email-already-in-use':
-          setError('Цей акаунт вже існує. Перейдіть у вкладку "Увійти"');
-          break;
-        case 'auth/invalid-credential':
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-          setError('Неправильна пошта або пароль');
+          setError('Цей акаунт вже існує. Увійдіть.');
           break;
         case 'auth/weak-password':
-          setError('Пароль занадто слабкий (мінімум 6 символів)');
+          setError('Пароль має бути не менше 6 символів');
           break;
-        case 'auth/invalid-email':
-          setError('Неправильний формат електронної пошти');
+        case 'auth/invalid-credential':
+          setError('Неправильна пошта або пароль');
           break;
         default:
-          setError('Помилка: перевірте дані або спробуйте пізніше');
+          setError('Сталася помилка. Перевірте дані.');
       }
-      console.error("Firebase Auth Error:", err.code);
     }
   };
 
@@ -57,9 +87,14 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
         <button className="auth-close" onClick={onClose}>&times;</button>
         
         <h2>{isLogin ? 'Вхід в систему' : 'Реєстрація'}</h2>
-        <p className="auth-subtitle">
-          {isLogin ? 'Введіть свої дані для доступу' : 'Створіть новий обліковий запис'}
-        </p>
+        
+        {/* ОНОВЛЕНА КНОПКА GOOGLE З МАЛЕНЬКОЮ ІКОНКОЮ */}
+        <button type="button" className="google-btn" onClick={handleGoogleLogin}>
+          <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '24px', height: '24px' }} />
+          Продовжити з Google
+        </button>
+
+        <div className="auth-divider"><span>або через пошту</span></div>
 
         <form onSubmit={handleSubmit}>
           {!isLogin && (
@@ -67,11 +102,8 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
               type="text" 
               placeholder="Ваше ім'я" 
               value={name} 
-              onChange={(e) => {
-                // Забороняємо цифри та спецсимволи (+, -, *, / тощо)
-                const cleanName = e.target.value.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄґҐ\s]/g, '');
-                setName(cleanName);
-              }} 
+              // ЗАХИСТ ІМЕНІ: Тільки літери та пробіли
+              onChange={(e) => setName(e.target.value.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄґҐ\s]/g, ''))} 
               required 
             />
           )}
@@ -79,11 +111,8 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
             type="email" 
             placeholder="Email" 
             value={email} 
-            onChange={(e) => {
-              // Забороняємо пробіли та дивні символи в пошті
-              const cleanEmail = e.target.value.replace(/[^a-zA-Z0-9@._-]/g, '');
-              setEmail(cleanEmail);
-            }} 
+            // ЗАХИСТ ПОШТИ: Тільки літери, цифри, @, крапка і підкреслення (ніяких +=-)
+            onChange={(e) => setEmail(e.target.value.replace(/[^a-zA-Z0-9@._]/g, ''))} 
             required 
           />
           <input 
@@ -95,18 +124,20 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
           />
           
           {error && <p className="auth-error">{error}</p>}
+          {infoMessage && <p className="auth-info">{infoMessage}</p>}
 
           <button type="submit" className="auth-submit-btn">
             {isLogin ? 'Увійти' : 'Зареєструватися'}
           </button>
         </form>
 
+        {isLogin && (
+          <p className="forgot-password" onClick={handleResetPassword}>Забули пароль?</p>
+        )}
+
         <p className="auth-switch">
           {isLogin ? 'Немає акаунту?' : 'Вже маєте акаунт?'}
-          <span onClick={() => {
-            setIsLogin(!isLogin);
-            setError(''); // Очищуємо помилку при перемиканні
-          }}>
+          <span onClick={() => { setIsLogin(!isLogin); setError(''); setInfoMessage(''); }}>
             {isLogin ? ' Створити' : ' Увійти'}
           </span>
         </p>

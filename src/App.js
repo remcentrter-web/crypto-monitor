@@ -8,10 +8,11 @@ import Market from './pages/Market';
 import Favorites from './pages/Favorites';
 import Alerts from './pages/Alerts';
 
-// 🔥 Імпортуємо Firebase та Модалку
+// 🔥 Імпортуємо Firebase, Модалку входу та Кабінет
 import { auth } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import AuthModal from './components/AuthModal';
+import CabinetModal from './components/CabinetModal'; 
 
 function App() {
   const [prices, setPrices] = useState({});
@@ -28,16 +29,16 @@ function App() {
   const [isSearchFocused, setIsSearchFocused] = useState(false); 
   const [searchCategory, setSearchCategory] = useState('all'); 
 
-  // 🔥 Стан для користувача та вікна входу
+  // 🔥 Стан для користувача, вікна входу та КАБІНЕТУ
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showCabinetModal, setShowCabinetModal] = useState(false); 
 
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('myFavorites');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Відстежуємо стан авторизації (зайшов/вийшов)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -46,11 +47,11 @@ function App() {
   }, []);
 
   const handleLogout = async () => {
-    if(window.confirm('Ви впевнені, що хочете вийти з акаунта?')) {
-      await signOut(auth);
-      setToast({ show: true, message: 'Ви вийшли з акаунта', isAdd: false });
-      setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
-    }
+    // Тепер ми не питаємо підтвердження через страшне вікно браузера, 
+    // бо користувач натискає красиву кнопку "Вийти" в кабінеті
+    await signOut(auth);
+    setToast({ show: true, message: 'Ви вийшли з акаунта', isAdd: false });
+    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
   };
 
   useEffect(() => {
@@ -413,8 +414,8 @@ function App() {
             )}
           </div>
 
-          {/* 🔥 ОНОВЛЕНИЙ БЛОК ПРОФІЛЮ 🔥 */}
-          <div className="user-block" onClick={() => user ? handleLogout() : setShowAuthModal(true)}>
+          {/* 🔥 ПРОФІЛЬ В ШАПЦІ (Тепер відкриває кабінет) 🔥 */}
+          <div className="user-block" onClick={() => user ? setShowCabinetModal(true) : setShowAuthModal(true)}>
             {user ? (
               <>
                 <span className="user-name">{user.displayName || user.email.split('@')[0]}</span>
@@ -547,36 +548,35 @@ function App() {
           })()
         )}
 
-        <style>
-          {`
-            @keyframes modalRevealAlert {
-              0% { opacity: 0; transform: scale(0.8) translateY(-20px); }
-              100% { opacity: 1; transform: scale(1) translateY(0); }
-            }
-            @keyframes modalPulseAlertShadow {
-              0%, 100% { boxShadow: 0 0 40px ${activeAlertsQueue[0]?.type === 'up' ? 'rgba(0,192,135,0.15)' : 'rgba(255,67,67,0.15)'}; }
-              50% { boxShadow: 0 0 50px ${activeAlertsQueue[0]?.type === 'up' ? 'rgba(0,192,135,0.25)' : 'rgba(255,67,67,0.25)'}; }
-            }
-          `}
-        </style>
-
-        {/* 🔥 Повідомлення без емодзі 🔥 */}
         {toast.show && (
           <div className="toast-notification">
             {toast.message}
           </div>
         )}
 
-        {/* 🔥 ВИКЛИК МОДАЛКИ АВТОРИЗАЦІЇ 🔥 */}
+        {/* 🔥 ВИКЛИК МОДАЛОК 🔥 */}
         {showAuthModal && (
           <AuthModal 
             onClose={() => setShowAuthModal(false)} 
-         onLoginSuccess={() => {
-  setToast({ show: true, message: 'Успішний вхід', isAdd: true });
-  setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
-}}
+            onLoginSuccess={() => {
+              setToast({ show: true, message: 'Успішний вхід', isAdd: true });
+              setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+            }}
           />
         )}
+
+       {showCabinetModal && (
+          <CabinetModal 
+            user={user} 
+            favoritesCount={favorites.length}
+            alertsCount={alerts.length}
+            onClose={() => setShowCabinetModal(false)} 
+            onLogout={() => {
+              setShowCabinetModal(false);
+              handleLogout();
+            }}
+          />
+        )}  
       </div>
     </Router>
   );
