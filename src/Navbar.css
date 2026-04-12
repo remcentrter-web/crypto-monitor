@@ -72,3 +72,18 @@
   color: black;
   font-weight: bold;
 }
+.auth-link-text {
+  color: #f7931a;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 5px 10px;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.auth-link-text:hover {
+  color: #ffaa42;
+  text-shadow: 0 0 12px rgba(247, 147, 26, 0.7);
+  transform: scale(1.05) translateY(-1px);
+}

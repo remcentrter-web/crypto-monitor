@@ -8,6 +8,11 @@ import Market from './pages/Market';
 import Favorites from './pages/Favorites';
 import Alerts from './pages/Alerts';
 
+// 🔥 Імпортуємо Firebase та Модалку
+import { auth } from './firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import AuthModal from './components/AuthModal';
+
 function App() {
   const [prices, setPrices] = useState({});
   const [lastUpdated, setLastUpdated] = useState('');
@@ -23,27 +28,46 @@ function App() {
   const [isSearchFocused, setIsSearchFocused] = useState(false); 
   const [searchCategory, setSearchCategory] = useState('all'); 
 
+  // 🔥 Стан для користувача та вікна входу
+  const [user, setUser] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('myFavorites');
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Відстежуємо стан авторизації (зайшов/вийшов)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    if(window.confirm('Ви впевнені, що хочете вийти з акаунта?')) {
+      await signOut(auth);
+      setToast({ show: true, message: 'Ви вийшли з акаунта', isAdd: false });
+      setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+    }
+  };
+
   useEffect(() => {
     localStorage.setItem('myFavorites', JSON.stringify(favorites));
   }, [favorites]);
-// --- ПАМ'ЯТЬ ДЛЯ СПОВІЩЕНЬ ---
+
   const [alerts, setAlerts] = useState(() => {
     const saved = localStorage.getItem('myAlerts');
     return saved ? JSON.parse(saved) : [];
   });
-const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГА для сповіщень
-// Створюємо пам'ять для архіву (історія)
+  const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); 
+
   const [alertHistory, setAlertHistory] = useState(() => {
     const saved = localStorage.getItem('myAlertHistory');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Автоматичне збереження історії в браузері
   useEffect(() => {
     localStorage.setItem('myAlertHistory', JSON.stringify(alertHistory));
   }, [alertHistory]);
@@ -55,23 +79,19 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
   const handleAddAlert = (coinId, targetPrice, type) => {
     const newAlert = { id: Date.now(), coinId, targetPrice: parseFloat(targetPrice), type };
     setAlerts(prev => [...prev, newAlert]);
-    
-    // Показуємо зелену виїжджаючу плашку (Toast), що все збережено
-    setToast({ show: true, message: `Сповіщення для ${coinId} створено! 🔔`, isAdd: true });
+    setToast({ show: true, message: `Сповіщення для ${coinId} створено!`, isAdd: true });
     setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
   };
-// Функція для зміни ціни в існуючому сповіщенні
+
   const handleEditAlert = (id, newPrice) => {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, targetPrice: parseFloat(newPrice) } : a));
   };
-  // -----------------------------
 
- // 👀 НАГЛЯДАЧ ЗА ЦІНАМИ
   useEffect(() => {
     if (alerts.length === 0 || Object.keys(prices).length === 0) return;
 
     let alertsToKeep = [];
-    let newlyTriggered = []; // Збираємо всі сповіщення, які спрацювали одночасно
+    let newlyTriggered = []; 
 
     alerts.forEach(alertItem => {
       const coinData = prices[alertItem.coinId];
@@ -82,7 +102,6 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
 
       const currentPrice = parseFloat(coinData.price);
       
-      // Якщо чекали росту або падіння
       if (alertItem.type === 'up' && currentPrice >= alertItem.targetPrice) {
         newlyTriggered.push({ ...alertItem, currentPrice });
       } 
@@ -94,25 +113,19 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
       }
     });
 
-    // Якщо є хоча б одне спрацьоване, додаємо їх У ЧЕРГУ
   if (newlyTriggered.length > 0) {
-      // 📝 Створюємо записи для історії (додаємо дату та час)
       const triggeredWithTime = newlyTriggered.map(item => ({
         ...item,
         time: new Date().toLocaleTimeString(),
         date: new Date().toLocaleDateString()
       }));
       
-      // Додаємо в історію (зберігаємо лише останні 20 штук)
       setAlertHistory(prev => [...triggeredWithTime, ...prev].slice(0, 20));
-      
-      // Відправляємо в чергу для показу вікна
       setActiveAlertsQueue(prevQueue => [...prevQueue, ...newlyTriggered]);
-      
-      // Видаляємо активовані сповіщення зі списку
       setAlerts(alertsToKeep);
     }
   }, [prices,alerts]);
+
   useEffect(() => {
    const fetchTop50 = async () => {
     try {
@@ -131,7 +144,6 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
               ? item.current_price.toFixed(6) 
               : item.current_price.toFixed(item.current_price > 1 ? 2 : 4);
 
-            // ФІКС БАГА: Запам'ятовуємо, куди пішла ціна (вгору чи вниз)
             let dir = 'up'; 
             if (prev[symbol]) {
               if (parseFloat(formattedPrice) > parseFloat(prev[symbol].price)) {
@@ -139,7 +151,7 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
               } else if (parseFloat(formattedPrice) < parseFloat(prev[symbol].price)) {
                 dir = 'down';
               } else {
-                dir = prev[symbol].direction || 'up'; // Якщо не змінилась, лишаємо старий напрямок
+                dir = prev[symbol].direction || 'up'; 
               }
             }
 
@@ -155,7 +167,7 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
               low24h: item.low_24h,
               volume: item.total_volume,
               ath: item.ath,
-              direction: dir // Зберігаємо напрямок у стан
+              direction: dir 
             };
           });
 
@@ -206,7 +218,6 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
     const changePercent = coinData?.change;
     const coinImage = coinData?.image; 
     
-    // ФІКС БАГА: Беремо колір з пам'яті монети
     const isUp = coinData?.direction !== 'down'; 
     
     const prevPriceData = prevPricesRef.current[id];
@@ -215,7 +226,6 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
     const isPositiveChange = parseFloat(changePercent) >= 0;
     const isFavorite = favorites.includes(id);
 
-    // Анімація спалаху (залишається працювати тільки в момент оновлення)
     const flashClass = (currentPrice && prevPrice && currentPrice !== prevPrice) 
       ? (parseFloat(currentPrice) > parseFloat(prevPrice) ? 'up-flash' : 'down-flash') 
       : '';
@@ -294,15 +304,8 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
    Сповіщення
   {alerts.length > 0 && (
     <span style={{ 
-      position: 'absolute', 
-      top: '-8px', 
-      right: '-12px', 
-      background: '#ff4343', 
-      color: 'white', 
-      fontSize: '10px', 
-      padding: '2px 6px', 
-      borderRadius: '10px',
-      fontWeight: 'bold',
+      position: 'absolute', top: '-8px', right: '-12px', background: '#ff4343', color: 'white', 
+      fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold',
       boxShadow: '0 0 10px rgba(255,67,67,0.3)'
     }}>
       {alerts.length}
@@ -312,18 +315,15 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
           </div>
 
           <div style={{ position: 'relative', margin: '0 auto' }}>
-           <input 
+            <input 
               type="text" 
               placeholder="Пошук або фільтр..."   
               value={searchQuery}
               onChange={(e) => {
-                // 🔥 ФІЛЬТР: Дозволяємо лише літери (українські, англійські) та пробіли
-                // Прибираємо цифри, +, -, та інші знаки
-             const cleanValue = e.target.value.replace(/[0-9+-]/g, '');
+                const cleanValue = e.target.value.replace(/[0-9+-]/g, '');
                 setSearchQuery(cleanValue);
               }}
               onKeyDown={(e) => {
-                // Додатковий захист: блокуємо натискання цифр та знаків на місці
                 if (/[0-9+-]/.test(e.key)) {
                   e.preventDefault();
                 }
@@ -406,17 +406,27 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
                       </div>
                     );
                   }) : (
-                    <div style={{ padding: '30px', textAlign: 'center', color: '#aaa' }}>За цим фільтром нічого не знайдено 🤷‍♂️</div>
+                    <div style={{ padding: '30px', textAlign: 'center', color: '#aaa' }}>За цим фільтром нічого не знайдено</div>
                   )}
                 </div>
               </div>
             )}
           </div>
 
-          <div className="user-block" onClick={() => alert("Профіль Максим")}>
-            <span className="user-name">Максим</span>
-            <div className="user-avatar">Д</div>
+          {/* 🔥 ОНОВЛЕНИЙ БЛОК ПРОФІЛЮ 🔥 */}
+          <div className="user-block" onClick={() => user ? handleLogout() : setShowAuthModal(true)}>
+            {user ? (
+              <>
+                <span className="user-name">{user.displayName || user.email.split('@')[0]}</span>
+                <div className="user-avatar">{user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</div>
+              </>
+            ) : (
+              <span className="auth-link-text">
+                Увійти / Зареєструватись
+              </span>
+            )}
           </div>
+
         </nav>
 
         <Routes>
@@ -472,7 +482,6 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
           } />
 
           <Route path="/favorites" element={
-            
             <Favorites 
               favorites={favorites} 
               prices={prices} 
@@ -492,20 +501,18 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
             favorites={favorites} 
             toggleFavorite={toggleFavorite}
             handleAddAlert={handleAddAlert}
+            user={user}
           />
         )}
-      {/* 🚨 ІДЕАЛЬНЕ, АНІМОВАНЕ СПОВІЩЕННЯ (З ЧЕРГОЮ) 🚨 */}
+
         {activeAlertsQueue.length > 0 && (
           (() => {
-            const currentAlert = activeAlertsQueue[0]; // Беремо ПЕРШЕ сповіщення з черги
+            const currentAlert = activeAlertsQueue[0]; 
             
             return (
               <div className="modal-overlay" style={{ zIndex: 9999 }}>
                 <div className="modal-content" style={{ 
-                  maxWidth: '320px', 
-                  textAlign: 'center', 
-                  borderRadius: '20px', 
-                  border: 'none', 
+                  maxWidth: '320px', textAlign: 'center', borderRadius: '20px', border: 'none', 
                   animation: 'modalRevealAlert 0.4s ease-out forwards, modalPulseAlertShadow 3s infinite 0.4s',
                   boxShadow: `0 0 40px ${currentAlert.type === 'up' ? 'rgba(0,192,135,0.15)' : 'rgba(255,67,67,0.15)'}`,
                   padding: '30px'
@@ -514,36 +521,20 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
                   <div style={{ fontSize: '3.5rem', marginBottom: '10px' }}>
                     {currentAlert.type === 'up' ? '📈' : '📉'}
                   </div>
-                  
                   <h2 style={{ margin: '0 0 10px 0', color: '#fff', fontSize: '1.4rem', fontWeight: 'bold' }}>
                     Цінове сповіщення
                   </h2>
-                  
                   <p style={{ fontSize: '1rem', color: '#aaa', marginBottom: '25px', lineHeight: '1.4' }}>
                     Програма зафіксувала, що <strong style={{ color: '#fff' }}>{currentAlert.coinId}</strong> перетнув відмітку <strong style={{ color: currentAlert.type === 'up' ? '#00c087' : '#ff4343' }}>${currentAlert.targetPrice}</strong>!
                   </p>
-                  
                   <div style={{ background: '#12161c', padding: '15px', borderRadius: '15px', marginBottom: '25px', border: '1px solid #2b3139' }}>
-                    <span style={{ color: '#8e9eaf', fontSize: '0.85rem' }}>Поточна ринкова ціна:</span>
-                    <br/>
+                    <span style={{ color: '#8e9eaf', fontSize: '0.85rem' }}>Поточна ринкова ціна:</span><br/>
                     <strong style={{ fontSize: '1.6rem', color: '#fff' }}>${currentAlert.currentPrice}</strong>
                   </div>
 
                   <button 
-                    // 🔥 ПРИ КЛІКУ: Видаляємо поточне з черги, і якщо там є ще одне, воно одразу з'явиться!
                     onClick={() => setActiveAlertsQueue(prev => prev.slice(1))}
-                    style={{ 
-                      width: '100%', 
-                      padding: '12px', 
-                      background: '#fff', 
-                      color: '#000', 
-                      border: 'none', 
-                      borderRadius: '15px', 
-                      fontSize: '1rem', 
-                      fontWeight: 'bold', 
-                      cursor: 'pointer', 
-                      transition: 'all 0.2s' 
-                    }}
+                    style={{ width: '100%', padding: '12px', background: '#fff', color: '#000', border: 'none', borderRadius: '15px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}
                     onMouseEnter={(e) => e.target.style.transform = 'scale(1.03)'}
                     onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   >
@@ -556,24 +547,35 @@ const [activeAlertsQueue, setActiveAlertsQueue] = useState([]); // 🔥 ЧЕРГ
           })()
         )}
 
-        {/* --- Анімації --- */}
         <style>
           {`
             @keyframes modalRevealAlert {
               0% { opacity: 0; transform: scale(0.8) translateY(-20px); }
               100% { opacity: 1; transform: scale(1) translateY(0); }
             }
-
             @keyframes modalPulseAlertShadow {
               0%, 100% { boxShadow: 0 0 40px ${activeAlertsQueue[0]?.type === 'up' ? 'rgba(0,192,135,0.15)' : 'rgba(255,67,67,0.15)'}; }
               50% { boxShadow: 0 0 50px ${activeAlertsQueue[0]?.type === 'up' ? 'rgba(0,192,135,0.25)' : 'rgba(255,67,67,0.25)'}; }
             }
           `}
         </style>
+
+        {/* 🔥 Повідомлення без емодзі 🔥 */}
         {toast.show && (
           <div className="toast-notification">
-            {toast.isAdd ? '✅' : '🗑️'} {toast.message}
+            {toast.message}
           </div>
+        )}
+
+        {/* 🔥 ВИКЛИК МОДАЛКИ АВТОРИЗАЦІЇ 🔥 */}
+        {showAuthModal && (
+          <AuthModal 
+            onClose={() => setShowAuthModal(false)} 
+         onLoginSuccess={() => {
+  setToast({ show: true, message: 'Успішний вхід', isAdd: true });
+  setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+}}
+          />
         )}
       </div>
     </Router>
