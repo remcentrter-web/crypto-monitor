@@ -11,14 +11,13 @@ const PRESET_AVATARS = [
   "https://api.dicebear.com/8.x/bottts/svg?seed=ADA&backgroundColor=1e2329"
 ];
 
-// Повний словник перекладів для всіх розділів
 const translations = {
   ua: {
     menuProfile: "👤 Профіль", menuStats: "📊 Активність", menuSec: "🔒 Безпека", menuSet: "⚙️ Налаштування", menuSup: "🎧 Підтримка", menuAbout: "🚀 Про додаток", logout: "Вийти з акаунта",
     profTitle: "Мій профіль", nickLabel: "Ваш нікнейм", avaLabel: "Швидкий вибір аватара", urlLabel: "Або вставте посилання", saveBtn: "Зберегти зміни", saving: "Збереження...",
     statTitle: "Аналітика акаунта", statFav: "Обраних монет", statAlert: "Сповіщень", statLog: "Журнал подій", log1: "Успішна авторизація", log2: "Синхронізація з хмарою", log3: "Оновлення котирувань",
     secTitle: "Безпека", secEmail: "Електронна пошта", secEmailDesc: "Основний ідентифікатор", secPass: "Новий пароль", secPassDesc: "Мінімум 6 символів", secUpdate: "Оновити дані",
-    setTitle: "Загальні налаштування", setLang: "Мова інтерфейсу", setCur: "Основна валюта", setTheme: "Тема оформлення", themeDark: "Темна", themeLight: "Світла",
+    setTitle: "Загальні налаштування", setLang: "Мова інтерфейсу", setCur: "Основна валюта",
     supTitle: "Підтримка", supPlace: "Опишіть проблему або залиште побажання...", supBtn: "Надіслати повідомлення",
     abTitle: "Про Crypto Monitor", abP1: "Твій персональний термінал для аналізу ринку.", abF1: "Швидкість React ⚡", abF1d: "Миттєве завантаження.", abF2: "Надійність Firebase 🔒", abF2d: "Твої дані в безпеці.", abF3: "Точність CoinGecko 📈", abF3d: "Ціни в реальному часі.", abFoot: "Розроблено для трейдерів. Версія 2.0"
   },
@@ -27,16 +26,16 @@ const translations = {
     profTitle: "My Profile", nickLabel: "Nickname", avaLabel: "Quick Avatar Select", urlLabel: "Or paste image URL", saveBtn: "Save Changes", saving: "Saving...",
     statTitle: "Account Analytics", statFav: "Favorite Coins", statAlert: "Active Alerts", statLog: "Event Log", log1: "Successful login", log2: "Cloud synchronization", log3: "Price quotes updated",
     secTitle: "Security", secEmail: "Email Address", secEmailDesc: "Primary identifier", secPass: "New Password", secPassDesc: "Minimum 6 characters", secUpdate: "Update Security",
-    setTitle: "General Settings", setLang: "Interface Language", setCur: "Main Currency", setTheme: "Theme", themeDark: "Dark", themeLight: "Light",
+    setTitle: "General Settings", setLang: "Interface Language", setCur: "Main Currency",
     supTitle: "Support", supPlace: "Describe your issue or leave feedback...", supBtn: "Send Message",
     abTitle: "About Crypto Monitor", abP1: "Your personal terminal for market analysis.", abF1: "React Speed ⚡", abF1d: "Instant loading.", abF2: "Firebase Security 🔒", abF2d: "Your data is safe.", abF3: "CoinGecko Accuracy 📈", abF3d: "Real-time pricing.", abFoot: "Built for traders. Version 2.0"
   }
 };
 
-const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) => {
+// 🔥 ДОДАЛИ ПРОПСИ ДЛЯ ВАЛЮТИ ТАКОЖ (currentCurrency, setGlobalCurrency)
+const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, currentLang, setGlobalLang, currentCurrency, setGlobalCurrency }) => {
   const [activeSection, setActiveSection] = useState('profile');
-  const [lang, setLang] = useState('ua'); 
-  const t = translations[lang]; 
+  const t = translations[currentLang] || translations.ua; 
 
   const [newName, setNewName] = useState(user?.displayName || '');
   const [newPhoto, setNewPhoto] = useState(user?.photoURL || '');
@@ -57,7 +56,7 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
     setIsSaving(true);
     try {
       await updateProfile(user, { displayName: newName, photoURL: newPhoto });
-      notify(lang === 'ua' ? 'Профіль оновлено!' : 'Profile updated!');
+      notify(currentLang === 'ua' ? 'Профіль оновлено!' : 'Profile updated!');
     } catch (err) { notify('Error', 'error'); }
     setIsSaving(false);
   };
@@ -67,9 +66,9 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
     try {
       if (newEmail !== user.email) await updateEmail(user, newEmail);
       if (newPassword) await updatePassword(user, newPassword);
-      notify(lang === 'ua' ? 'Безпеку оновлено!' : 'Security updated!');
+      notify(currentLang === 'ua' ? 'Безпеку оновлено!' : 'Security updated!');
       setNewPassword('');
-    } catch (err) { notify(lang === 'ua' ? 'Потрібно перелогінитись!' : 'Relogin required!', 'error'); }
+    } catch (err) { notify(currentLang === 'ua' ? 'Потрібно перелогінитись!' : 'Relogin required!', 'error'); }
     setIsSaving(false);
   };
 
@@ -81,9 +80,10 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
         <div className="cab-sidebar">
           <div className="cab-sidebar-user">
             <img src={user.photoURL || PRESET_AVATARS[0]} alt="Avatar" />
-            <div className="cab-user-meta">
-              <span className="cab-username">{user.displayName || 'Trader'}</span>
-              <span className="cab-status-online">Online</span>
+            {/* 🔥 ВИПРАВИВ ЗЛИПАННЯ: додав display: flex та gap */}
+            <div className="cab-user-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="cab-username" style={{ fontWeight: 'bold' }}>{user.displayName || 'Trader'}</span>
+              <span className="cab-status-online" style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: '8px', background: 'rgba(0, 192, 135, 0.15)', color: '#00c087', border: '1px solid rgba(0, 192, 135, 0.3)' }}>Online</span>
             </div>
           </div>
           
@@ -188,20 +188,20 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
                 <div className="cab-settings-list">
                     <div className="cab-setting-row">
                         <span>{t.setLang}</span>
-                        <select className="cab-select-ui" value={lang} onChange={(e) => setLang(e.target.value)}>
+                        <select className="cab-select-ui" value={currentLang} onChange={(e) => setGlobalLang(e.target.value)}>
                             <option value="ua">Українська 🇺🇦</option>
                             <option value="en">English 🇺🇸</option>
                         </select>
                     </div>
                     <div className="cab-setting-row">
                         <span>{t.setCur}</span>
-                        <select className="cab-select-ui"><option>USD ($)</option><option>UAH (₴)</option></select>
-                    </div>
-                    <div className="cab-setting-row">
-                        <span>{t.setTheme}</span>
-                        <select className="cab-select-ui">
-                            <option>{t.themeDark} 🌙</option>
-                            <option>{t.themeLight} ☀️</option>
+                        {/* 🔥 ЗМІНЮЄМО ГЛОБАЛЬНУ ВАЛЮТУ */}
+                        <select className="cab-select-ui" value={currentCurrency} onChange={(e) => setGlobalCurrency(e.target.value)}>
+                            <option value="usd">USD ($)</option>
+                            <option value="eur">EUR (€)</option>
+                            <option value="gbp">GBP (£)</option>
+                            <option value="pln">PLN (zł)</option>
+                            <option value="uah">UAH (₴)</option>
                         </select>
                     </div>
                 </div>
@@ -219,9 +219,8 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount }) 
                         onChange={(e) => setSupportMsg(e.target.value)} 
                         placeholder={t.supPlace}
                     />
-                    {/* ТЕМНА ЗАОКРУГЛЕНА КНОПКА */}
                     <button className="cab-dark-rounded-btn" onClick={() => { 
-                      notify(lang === 'ua' ? 'Надіслано!' : 'Sent!'); 
+                      notify(currentLang === 'ua' ? 'Надіслано!' : 'Sent!'); 
                       setSupportMsg(''); 
                     }}>
                       {t.supBtn}

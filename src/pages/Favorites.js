@@ -1,11 +1,41 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+
+// 🔥 СЛОВНИК ДЛЯ СТОРІНКИ "ОБРАНЕ"
+const favoritesTranslations = {
+  ua: {
+    emptyTitle: "Моє обране", emptyText: "Тут поки порожньо. Додай монети на вкладці \"Ринок\"!",
+    analytics: "📊 Аналітика списку", avgTrend: "Середній тренд (24г)", topMover: "🔥 Топ-мувер",
+    sortTitle: "⚙️ Сортування", sortRank: "За рейтингом", sortGrowth: "🚀 Ріст", sortDrop: "📉 Падіння", sortPrice: "💰 Ціна",
+    clearBtn: "🧹 Очистити все", pageTitle: "⭐ Моє обране",
+    modalTitle: "Очистити список?", modalText1: "Це видалить усі", modalText2: "монети з вашого обраного. Ви впевнені?",
+    btnCancel: "Скасувати", btnConfirm: "Видалити все"
+  },
+  en: {
+    emptyTitle: "My Favorites", emptyText: "It's empty here. Add coins from the \"Market\" tab!",
+    analytics: "📊 List Analytics", avgTrend: "Average Trend (24h)", topMover: "🔥 Top Mover",
+    sortTitle: "⚙️ Sort By", sortRank: "By Rank", sortGrowth: "🚀 Growth", sortDrop: "📉 Drop", sortPrice: "💰 Price",
+    clearBtn: "🧹 Clear All", pageTitle: "⭐ My Favorites",
+    modalTitle: "Clear the list?", modalText1: "This will remove all", modalText2: "coins from your favorites. Are you sure?",
+    btnCancel: "Cancel", btnConfirm: "Delete All"
+  }
+};
 
 const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
+  // 🔥 РАДАР МОВИ
+  const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentLang = localStorage.getItem('app_lang') || 'ua';
+      if (currentLang !== lang) setLang(currentLang);
+    }, 300);
+    return () => clearInterval(interval);
+  }, [lang]);
+
+  const t = favoritesTranslations[lang];
+
   const [sortBy, setSortBy] = useState('rank');
-  // Стан для нашої нової модалки підтвердження
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // 1. Готуємо дані
   const favoriteData = useMemo(() => {
     return favorites
       .map(symbol => {
@@ -15,7 +45,6 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
       .filter(coin => coin !== null);
   }, [favorites, prices]);
 
-  // 2. Рахуємо статистику
   const stats = useMemo(() => {
     if (favoriteData.length === 0) return { avgChange: 0, topMover: null };
     const totalChange = favoriteData.reduce((acc, coin) => acc + parseFloat(coin.change || 0), 0);
@@ -24,7 +53,6 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
     return { avgChange: avg, topMover: top };
   }, [favoriteData]);
 
-  // 3. Сортування
   const sortedData = useMemo(() => {
     let data = [...favoriteData];
     if (sortBy === 'growth') data.sort((a, b) => parseFloat(b.change) - parseFloat(a.change));
@@ -34,7 +62,6 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
     return data;
   }, [favoriteData, sortBy]);
 
-  // Функція для повного очищення
   const clearAllFavorites = () => {
     setFavorites([]);
     setShowConfirmModal(false);
@@ -44,8 +71,8 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
     return (
       <div style={{ textAlign: 'center', padding: '100px 20px', color: '#8e9eaf' }}>
         <h1 style={{fontSize: '3rem', marginBottom: '20px'}}>⭐</h1>
-        <h2>Моє обране</h2>
-        <p>Тут поки порожньо. Додай монети на вкладці "Ринок"!</p>
+        <h2>{t.emptyTitle}</h2>
+        <p>{t.emptyText}</p>
       </div>
     );
   }
@@ -54,39 +81,38 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
     <div className="favorites-page-container" style={{ position: 'relative' }}>
       <aside className="favorites-sidebar">
         <div className="sidebar-section">
-          <h3>📊 Аналітика списку</h3>
+          <h3>{t.analytics}</h3>
           <div className="stat-card">
-            <span className="stat-label">Середній тренд (24г)</span>
+            <span className="stat-label">{t.avgTrend}</span>
             <strong className={`stat-value ${stats.avgChange >= 0 ? 'up' : 'down'}`}>
               {stats.avgChange >= 0 ? '▲' : '▼'} {stats.avgChange}%
             </strong>
           </div>
           {stats.topMover && (
             <div className="stat-card">
-              <span className="stat-label">🔥 Топ-мувер</span>
+              <span className="stat-label">{t.topMover}</span>
               <strong className="stat-value" style={{color: '#f7931a'}}>{stats.topMover.coinSymbol}</strong>
             </div>
           )}
         </div>
 
         <div className="sidebar-section">
-          <h3>⚙️ Сортування</h3>
+          <h3>{t.sortTitle}</h3>
           <div className="sort-buttons">
-            <button className={sortBy === 'rank' ? 'active' : ''} onClick={() => setSortBy('rank')}>За рейтингом</button>
-            <button className={sortBy === 'growth' ? 'active' : ''} onClick={() => setSortBy('growth')}>🚀 Ріст</button>
-            <button className={sortBy === 'drop' ? 'active' : ''} onClick={() => setSortBy('drop')}>📉 Падіння</button>
-            <button className={sortBy === 'price' ? 'active' : ''} onClick={() => setSortBy('price')}>💰 Ціна</button>
+            <button className={sortBy === 'rank' ? 'active' : ''} onClick={() => setSortBy('rank')}>{t.sortRank}</button>
+            <button className={sortBy === 'growth' ? 'active' : ''} onClick={() => setSortBy('growth')}>{t.sortGrowth}</button>
+            <button className={sortBy === 'drop' ? 'active' : ''} onClick={() => setSortBy('drop')}>{t.sortDrop}</button>
+            <button className={sortBy === 'price' ? 'active' : ''} onClick={() => setSortBy('price')}>{t.sortPrice}</button>
           </div>
         </div>
 
-        {/* Тепер кнопка просто відкриває нашу модалку */}
         <button className="clear-all-btn" onClick={() => setShowConfirmModal(true)}>
-          🧹 Очистити все
+          {t.clearBtn}
         </button>
       </aside>
 
       <main className="favorites-main">
-        <h1 className="section-title">⭐ Моє обране ({favorites.length})</h1>
+        <h1 className="section-title">{t.pageTitle} ({favorites.length})</h1>
         <div className="crypto-container">
           {sortedData.map(coin => (
             renderCard(coin.coinSymbol, coin.name, true)
@@ -94,7 +120,6 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
         </div>
       </main>
 
-      {/* --- НАША НОВА КРАСИВА МОДАЛКА ОЧИЩЕННЯ --- */}
       {showConfirmModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -108,9 +133,9 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
             animation: 'favModalAnim 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
           }}>
             <div style={{ fontSize: '3.5rem', marginBottom: '20px' }}>⚠️</div>
-            <h2 style={{ margin: '0 0 10px 0', color: '#fff', fontSize: '1.6rem' }}>Очистити список?</h2>
+            <h2 style={{ margin: '0 0 10px 0', color: '#fff', fontSize: '1.6rem' }}>{t.modalTitle}</h2>
             <p style={{ color: '#8e9eaf', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '30px' }}>
-              Це видалить усі <strong>{favorites.length}</strong> монети з вашого обраного. Ви впевнені?
+              {t.modalText1} <strong>{favorites.length}</strong> {t.modalText2}
             </p>
             
             <div style={{ display: 'flex', gap: '15px' }}>
@@ -125,7 +150,7 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
                 onMouseEnter={(e) => e.target.style.background = '#2b3139'}
                 onMouseLeave={(e) => e.target.style.background = 'transparent'}
               >
-                Скасувати
+                {t.btnCancel}
               </button>
               <button 
                 onClick={clearAllFavorites} 
@@ -136,7 +161,7 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
                   boxShadow: '0 10px 20px rgba(255,67,67,0.2)'
                 }}
               >
-                Видалити все
+                {t.btnConfirm}
               </button>
             </div>
           </div>

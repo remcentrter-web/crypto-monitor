@@ -8,16 +8,74 @@ import Market from './pages/Market';
 import Favorites from './pages/Favorites';
 import Alerts from './pages/Alerts';
 
-// 🔥 Імпортуємо Firebase, Модалку входу та Кабінет
 import { auth } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import AuthModal from './components/AuthModal';
 import CabinetModal from './components/CabinetModal'; 
 
+const appTranslations = {
+  ua: {
+    navHome: "Головна", navMarket: "Ринок", navFav: "Обране", navAlerts: "Сповіщення",
+    searchBox: "Пошук або фільтр...",
+    catAll: "Всі", catTop: "🔥 Топ-10", catGain: "🚀 Зростають", catStables: "💵 Стейбли", catFav: "⭐ Обрані",
+    notFound: "За цим фільтром нічого не знайдено",
+    loginBtn: "Увійти / Зареєструватись", logoutMsg: "Ви вийшли з акаунта", loginMsg: "Успішний вхід",
+    titleTop3: "Топ-3 криптовалюти на сьогодні",
+    lastUpdate: "Останнє оновлення:",
+    titlePop: "Популярні блокчейн-проекти 2026 року",
+    titleAll: "Весь ринок",
+    loadMore: "Розгорнути список", coinsCount: "монет",
+    alertCreate: "Сповіщення створено!",
+    alertTitle: "Цінове сповіщення",
+    alertText1: "Програма зафіксувала, що", alertText2: "перетнув відмітку",
+    alertCurrent: "Поточна ринкова ціна:", alertGotIt: "Зрозуміло, дякую!"
+  },
+  en: {
+    navHome: "Home", navMarket: "Market", navFav: "Favorites", navAlerts: "Alerts",
+    searchBox: "Search or filter...",
+    catAll: "All", catTop: "🔥 Top-10", catGain: "🚀 Gainers", catStables: "💵 Stables", catFav: "⭐ Favorites",
+    notFound: "Nothing found with this filter",
+    loginBtn: "Login / Register", logoutMsg: "You have logged out", loginMsg: "Successful login",
+    titleTop3: "Top-3 Cryptocurrencies Today",
+    lastUpdate: "Last update:",
+    titlePop: "Popular Blockchain Projects 2026",
+    titleAll: "Entire Market",
+    loadMore: "Expand list", coinsCount: "coins",
+    alertCreate: "Alert created!",
+    alertTitle: "Price Alert",
+    alertText1: "The system detected that", alertText2: "crossed the mark of",
+    alertCurrent: "Current market price:", alertGotIt: "Got it, thanks!"
+  }
+};
+
+const currencySymbols = {
+  usd: '$',
+  eur: '€',
+  gbp: '£',
+  pln: 'zł',
+  uah: '₴'
+};
+
 function App() {
-  const [prices, setPrices] = useState({});
+  const [language, setLanguage] = useState(localStorage.getItem('app_lang') || 'ua');
+  const t = appTranslations[language] || appTranslations.ua;
+
+  const [currency, setCurrency] = useState(localStorage.getItem('app_currency') || 'usd');
+  const curSymbol = currencySymbols[currency] || '$';
+
+  useEffect(() => {
+    localStorage.setItem('app_lang', language);
+  }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem('app_currency', currency);
+  }, [currency]);
+
+  const [prices, setPrices] = useState({ _currency: 'usd' });
   const [lastUpdated, setLastUpdated] = useState('');
-  const prevPricesRef = useRef({});
+  
+  // 🔥 ВИПРАВЛЕНО БАГ ЗІ СПАЛАХАМИ
+  const prevPricesRef = useRef({ _currency: 'usd' });
   const [selectedCoin, setSelectedCoin] = useState(null);
   
   const [coins, setCoins] = useState([]); 
@@ -29,7 +87,6 @@ function App() {
   const [isSearchFocused, setIsSearchFocused] = useState(false); 
   const [searchCategory, setSearchCategory] = useState('all'); 
 
-  // 🔥 Стан для користувача, вікна входу та КАБІНЕТУ
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCabinetModal, setShowCabinetModal] = useState(false); 
@@ -47,10 +104,8 @@ function App() {
   }, []);
 
   const handleLogout = async () => {
-    // Тепер ми не питаємо підтвердження через страшне вікно браузера, 
-    // бо користувач натискає красиву кнопку "Вийти" в кабінеті
     await signOut(auth);
-    setToast({ show: true, message: 'Ви вийшли з акаунта', isAdd: false });
+    setToast({ show: true, message: t.logoutMsg, isAdd: false });
     setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
   };
 
@@ -80,7 +135,7 @@ function App() {
   const handleAddAlert = (coinId, targetPrice, type) => {
     const newAlert = { id: Date.now(), coinId, targetPrice: parseFloat(targetPrice), type };
     setAlerts(prev => [...prev, newAlert]);
-    setToast({ show: true, message: `Сповіщення для ${coinId} створено!`, isAdd: true });
+    setToast({ show: true, message: `${t.alertCreate} (${coinId})`, isAdd: true });
     setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
   };
 
@@ -131,13 +186,15 @@ function App() {
    const fetchTop50 = async () => {
     try {
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&_t=${Date.now()}`
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=100&page=1&sparkline=false&_t=${Date.now()}`
       );
       const data = await response.json();
 
       if (Array.isArray(data)) {
         setPrices(prev => {
-          const results = {};
+          // 🔥 ЛОГІКА, ЩОБ НЕ БЛИМАЛО ПРИ ЗМІНІ ВАЛЮТИ
+          const isSameCurrency = prev._currency === currency;
+          const results = { _currency: currency };
           
           data.forEach(item => {
             const symbol = item.symbol.toUpperCase();
@@ -146,7 +203,8 @@ function App() {
               : item.current_price.toFixed(item.current_price > 1 ? 2 : 4);
 
             let dir = 'up'; 
-            if (prev[symbol]) {
+            // Порівнюємо ціни ТІЛЬКИ якщо валюта не змінювалась
+            if (isSameCurrency && prev[symbol]) {
               if (parseFloat(formattedPrice) > parseFloat(prev[symbol].price)) {
                 dir = 'up';
               } else if (parseFloat(formattedPrice) < parseFloat(prev[symbol].price)) {
@@ -172,7 +230,8 @@ function App() {
             };
           });
 
-          prevPricesRef.current = prev;
+          // Якщо валюта змінилась, стираємо стару історію цін
+          prevPricesRef.current = isSameCurrency ? prev : { _currency: currency };
           return results;
         });
         
@@ -186,11 +245,7 @@ function App() {
     fetchTop50();
     const interval = setInterval(fetchTop50, 60000); 
     return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    prevPricesRef.current = prices;
-  }, [prices]);
+  }, [currency]);
 
   const toggleFavorite = (coinId) => {
     const isAdding = !favorites.includes(coinId);
@@ -227,6 +282,7 @@ function App() {
     const isPositiveChange = parseFloat(changePercent) >= 0;
     const isFavorite = favorites.includes(id);
 
+    // 🔥 БЛИМАННЯ ПРАЦЮЄ ТІЛЬКИ ЯКЩО ЦЕ ТА САМА ВАЛЮТА
     const flashClass = (currentPrice && prevPrice && currentPrice !== prevPrice) 
       ? (parseFloat(currentPrice) > parseFloat(prevPrice) ? 'up-flash' : 'down-flash') 
       : '';
@@ -264,7 +320,7 @@ function App() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '10px' }}>
           <p className={`price ${isUp ? 'up' : 'down'}`} style={{ margin: 0, fontSize: isSmall ? '1.1rem' : '1.4rem' }}>
             <span className="arrow">{isUp ? '▲' : '▼'}</span>
-            ${currentPrice || '...'}
+            {curSymbol}{currentPrice || '...'}
           </p>
           {changePercent && (
             <span className={isPositiveChange ? 'green-text' : 'red-text'} style={{ fontSize: '0.9rem' }}>
@@ -298,27 +354,27 @@ function App() {
           <div className="nav-logo">CRYPTO MONITOR</div>
           
           <div style={{ display: 'flex', gap: '15px', marginLeft: '30px', alignItems: 'center' }}>
-            <Link to="/" className="nav-link-btn">Головна</Link>
-            <Link to="/market" className="nav-link-btn">Ринок</Link>
-          <Link to="/favorites" className={`nav-link-btn ${isPulsing ? 'pulse-nav' : ''}`}> Обране</Link>
-          <Link to="/alerts" className="nav-link-btn" style={{ position: 'relative' }}>
-   Сповіщення
-  {alerts.length > 0 && (
-    <span style={{ 
-      position: 'absolute', top: '-8px', right: '-12px', background: '#ff4343', color: 'white', 
-      fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold',
-      boxShadow: '0 0 10px rgba(255,67,67,0.3)'
-    }}>
-      {alerts.length}
-    </span>
-  )}
-</Link>
+            <Link to="/" className="nav-link-btn">{t.navHome}</Link>
+            <Link to="/market" className="nav-link-btn">{t.navMarket}</Link>
+            <Link to="/favorites" className={`nav-link-btn ${isPulsing ? 'pulse-nav' : ''}`}> {t.navFav}</Link>
+            <Link to="/alerts" className="nav-link-btn" style={{ position: 'relative' }}>
+              {t.navAlerts}
+              {alerts.length > 0 && (
+                <span style={{ 
+                  position: 'absolute', top: '-8px', right: '-12px', background: '#ff4343', color: 'white', 
+                  fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold',
+                  boxShadow: '0 0 10px rgba(255,67,67,0.3)'
+                }}>
+                  {alerts.length}
+                </span>
+              )}
+            </Link>
           </div>
 
           <div style={{ position: 'relative', margin: '0 auto' }}>
             <input 
               type="text" 
-              placeholder="Пошук або фільтр..."   
+              placeholder={t.searchBox}   
               value={searchQuery}
               onChange={(e) => {
                 const cleanValue = e.target.value.replace(/[0-9+-]/g, '');
@@ -350,11 +406,11 @@ function App() {
                 
                 <div style={{ padding: '12px', background: '#15191e', borderBottom: '1px solid #2b3139', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                   {[
-                    { id: 'all', label: 'Всі' },
-                    { id: 'top10', label: '🔥 Топ-10' },
-                    { id: 'gainers', label: '🚀 Зростають' },
-                    { id: 'stables', label: '💵 Стейбли' },
-                    { id: 'favorites', label: '⭐ Обрані' }
+                    { id: 'all', label: t.catAll },
+                    { id: 'top10', label: t.catTop },
+                    { id: 'gainers', label: t.catGain },
+                    { id: 'stables', label: t.catStables },
+                    { id: 'favorites', label: t.catFav }
                   ].map(cat => (
                     <button
                       key={cat.id}
@@ -397,7 +453,7 @@ function App() {
                           <span style={{ color: '#aaa', fontSize: '0.8rem' }}>{coin.symbol.toUpperCase()}</span>
                         </div>
                         <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                          <div style={{ fontWeight: 'bold' }}>${coin.current_price < 0.01 ? coin.current_price.toFixed(6) : coin.current_price.toFixed(2)}</div>
+                          <div style={{ fontWeight: 'bold' }}>{curSymbol}{coin.current_price < 0.01 ? coin.current_price.toFixed(6) : coin.current_price.toFixed(2)}</div>
                           {change && (
                             <span style={{ color: changeColor, fontSize: '0.85rem' }}>
                               {coin.price_change_percentage_24h >= 0 ? '+' : ''}{change}%
@@ -407,14 +463,13 @@ function App() {
                       </div>
                     );
                   }) : (
-                    <div style={{ padding: '30px', textAlign: 'center', color: '#aaa' }}>За цим фільтром нічого не знайдено</div>
+                    <div style={{ padding: '30px', textAlign: 'center', color: '#aaa' }}>{t.notFound}</div>
                   )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* 🔥 ПРОФІЛЬ В ШАПЦІ (Тепер відкриває кабінет) 🔥 */}
           <div className="user-block" onClick={() => user ? setShowCabinetModal(true) : setShowAuthModal(true)}>
             {user ? (
               <>
@@ -423,7 +478,7 @@ function App() {
               </>
             ) : (
               <span className="auth-link-text">
-                Увійти / Зареєструватись
+                {t.loginBtn}
               </span>
             )}
           </div>
@@ -437,8 +492,8 @@ function App() {
             <>
               <Market />
               
-              <h1>Топ-3 криптовалюти на сьогодні</h1>
-              <p className="update-time">Останнє оновлення: {lastUpdated}</p>
+              <h1>{t.titleTop3}</h1>
+              <p className="update-time">{t.lastUpdate} {lastUpdated}</p>
               
               <div className="crypto-container">
                {renderCard('BTC', 'Bitcoin')}
@@ -447,7 +502,7 @@ function App() {
               </div>
 
               <div className="popular-section">
-                <h2 className="section-title">Популярні блокчейн-проекти 2026 року</h2>
+                <h2 className="section-title">{t.titlePop}</h2>
                 <div className="popular-grid">
                   {renderCard('BNB', 'Binance Coin', true)}
                   {renderCard('XRP', 'Ripple', true)}
@@ -461,7 +516,7 @@ function App() {
               </div>
 
               <div className="popular-section">
-                <h2 className="section-title">Весь ринок</h2>
+                <h2 className="section-title">{t.titleAll}</h2>
                 
                 <div className="popular-grid">
                   {coins.slice(0, visibleCoins).map((coin, index) => (
@@ -474,7 +529,7 @@ function App() {
                 {visibleCoins < coins.length && (
                   <div style={{ textAlign: 'center', marginTop: '50px', marginBottom: '30px' }}>
                     <button className="load-more-btn pulsing-btn" onClick={() => setVisibleCoins(coins.length)}>
-                      Розгорнути список ({coins.length} монет)
+                      {t.loadMore} ({coins.length} {t.coinsCount})
                     </button>
                   </div>
                 )}
@@ -503,6 +558,8 @@ function App() {
             toggleFavorite={toggleFavorite}
             handleAddAlert={handleAddAlert}
             user={user}
+            currencySymbol={curSymbol}
+            currencyCode={currency}
           />
         )}
 
@@ -523,14 +580,14 @@ function App() {
                     {currentAlert.type === 'up' ? '📈' : '📉'}
                   </div>
                   <h2 style={{ margin: '0 0 10px 0', color: '#fff', fontSize: '1.4rem', fontWeight: 'bold' }}>
-                    Цінове сповіщення
+                    {t.alertTitle}
                   </h2>
                   <p style={{ fontSize: '1rem', color: '#aaa', marginBottom: '25px', lineHeight: '1.4' }}>
-                    Програма зафіксувала, що <strong style={{ color: '#fff' }}>{currentAlert.coinId}</strong> перетнув відмітку <strong style={{ color: currentAlert.type === 'up' ? '#00c087' : '#ff4343' }}>${currentAlert.targetPrice}</strong>!
+                    {t.alertText1} <strong style={{ color: '#fff' }}>{currentAlert.coinId}</strong> {t.alertText2} <strong style={{ color: currentAlert.type === 'up' ? '#00c087' : '#ff4343' }}>{curSymbol}{currentAlert.targetPrice}</strong>!
                   </p>
                   <div style={{ background: '#12161c', padding: '15px', borderRadius: '15px', marginBottom: '25px', border: '1px solid #2b3139' }}>
-                    <span style={{ color: '#8e9eaf', fontSize: '0.85rem' }}>Поточна ринкова ціна:</span><br/>
-                    <strong style={{ fontSize: '1.6rem', color: '#fff' }}>${currentAlert.currentPrice}</strong>
+                    <span style={{ color: '#8e9eaf', fontSize: '0.85rem' }}>{t.alertCurrent}</span><br/>
+                    <strong style={{ fontSize: '1.6rem', color: '#fff' }}>{curSymbol}{currentAlert.currentPrice}</strong>
                   </div>
 
                   <button 
@@ -539,7 +596,7 @@ function App() {
                     onMouseEnter={(e) => e.target.style.transform = 'scale(1.03)'}
                     onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   >
-                    Зрозуміло, дякую!
+                    {t.alertGotIt}
                   </button>
                   
                 </div>
@@ -554,12 +611,11 @@ function App() {
           </div>
         )}
 
-        {/* 🔥 ВИКЛИК МОДАЛОК 🔥 */}
         {showAuthModal && (
           <AuthModal 
             onClose={() => setShowAuthModal(false)} 
             onLoginSuccess={() => {
-              setToast({ show: true, message: 'Успішний вхід', isAdd: true });
+              setToast({ show: true, message: t.loginMsg, isAdd: true });
               setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
             }}
           />
@@ -575,6 +631,10 @@ function App() {
               setShowCabinetModal(false);
               handleLogout();
             }}
+            currentLang={language}
+            setGlobalLang={setLanguage}
+            currentCurrency={currency}
+            setGlobalCurrency={setCurrency}
           />
         )}  
       </div>

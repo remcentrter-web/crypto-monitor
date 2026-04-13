@@ -8,7 +8,45 @@ let cachedGlobalData = null;
 let cachedFearGreed = null;
 let lastFetchTime = 0;
 
+const homeTranslations = {
+  ua: {
+    heroTitle1: "Майбутнє фінансів", heroTitle2: "у твоїх руках",
+    heroSub: "Найшвидший та найзручніший моніторинг криптовалют. Відстежуй тренди, аналізуй ринок та приймай правильні рішення в реальному часі.",
+    heroBtn: "Дослідити ринок 🚀",
+    leaders: "📊 Лідери ринку (за 24 год)",
+    loadingLeaders: "Завантаження лідерів...",
+    globalTitle: "🌐 Глобальна статистика",
+    marketCap: "Загальна ринкова капіталізація",
+    volume: "Добовий обсяг торгів (24 год)",
+    dominance: "Ринкове домінування BTC",
+    fng: "Fear & Greed Index"
+  },
+  en: {
+    heroTitle1: "The future of finance", heroTitle2: "is in your hands",
+    heroSub: "The fastest and most convenient crypto monitoring. Track trends, analyze the market, and make the right decisions in real time.",
+    heroBtn: "Explore Market 🚀",
+    leaders: "📊 Market Leaders (24h)",
+    loadingLeaders: "Loading leaders...",
+    globalTitle: "🌐 Global Statistics",
+    marketCap: "Total Market Capitalization",
+    volume: "24h Trading Volume",
+    dominance: "BTC Market Dominance",
+    fng: "Fear & Greed Index"
+  }
+};
+
 function Home({ coins = [] }) {
+  const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentLang = localStorage.getItem('app_lang') || 'ua';
+      if (currentLang !== lang) setLang(currentLang);
+    }, 300);
+    return () => clearInterval(interval);
+  }, [lang]);
+
+  const t = homeTranslations[lang];
+
   const [globalData, setGlobalData] = useState(cachedGlobalData);
   const [fearGreed, setFearGreed] = useState(cachedFearGreed);
   const [selectedCoin, setSelectedCoin] = useState(null);
@@ -100,10 +138,8 @@ function Home({ coins = [] }) {
         padding: '50px 20px', position: 'relative'
       }}>
         
-        {/* ФОНОВИЙ ГРАФІК (ШАР 0) */}
         <HeroBackground />
 
-        {/* 🔥 ВСЕ ЩО НИЖЧЕ - ПІДНЯТО НА ШАР 2 (ПОВЕРХ ГРАФІКА) */}
         <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
           
           <div style={{ 
@@ -119,14 +155,14 @@ function Home({ coins = [] }) {
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
             lineHeight: '1.2'
           }}>
-            Майбутнє фінансів <br/> у твоїх руках
+            {t.heroTitle1} <br/> {t.heroTitle2}
           </h1>
 
           <p style={{ 
             fontSize: '1.2rem', color: '#aaa', maxWidth: '600px', 
             marginBottom: '40px', lineHeight: '1.6' 
           }}>
-            Найшвидший та найзручніший моніторинг криптовалют. Відстежуй тренди, аналізуй ринок та приймай правильні рішення в реальному часі.
+            {t.heroSub}
           </p>
 
           <Link to="/market" style={{ 
@@ -135,14 +171,13 @@ function Home({ coins = [] }) {
             textDecoration: 'none', boxShadow: '0 4px 15px rgba(247, 147, 26, 0.4)',
             transition: 'all 0.3s ease'
           }}>
-            Дослідити ринок 🚀
+            {t.heroBtn}
           </Link>
 
-          {/* Оновлений блок стрілки, піднятий вище */}
           <div style={{
             display: 'flex', justifyContent: 'center', width: '100%', 
-            marginTop: '40px', /* Відступ від кнопки "Дослідити ринок" */
-            marginBottom: '60px' /* Відступ до заголовку "Лідери ринку" */
+            marginTop: '40px', 
+            marginBottom: '60px' 
           }}>
             <div 
               onClick={scrollToLeaders}
@@ -165,7 +200,7 @@ function Home({ coins = [] }) {
 
           <div ref={leadersRef} style={{ width: '100%', maxWidth: '1000px', textAlign: 'left', marginBottom: '50px' }}>
             <h2 style={{ fontSize: '1.5rem', marginBottom: '25px', color: '#fff' }}>
-              📊 Лідери ринку (за 24 год)
+              {t.leaders}
             </h2>
             {coins.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
@@ -195,36 +230,36 @@ function Home({ coins = [] }) {
                 ))}
               </div>
             ) : (
-              <p style={{ color: '#aaa' }}>Завантаження лідерів...</p>
+              <p style={{ color: '#aaa' }}>{t.loadingLeaders}</p>
             )}
           </div>
 
           {bitcoinData && <BtcChart btcData={bitcoinData} />}
 
           <div style={{ width: '100%', maxWidth: '1000px', textAlign: 'left', marginBottom: '25px' }}>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '0', color: '#fff' }}>🌐 Глобальна статистика</h2>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '0', color: '#fff' }}>{t.globalTitle}</h2>
           </div>
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px', 
             marginBottom: '40px', width: '100%', maxWidth: '1000px'
           }}>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
-              <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>Загальна ринкова капіталізація</h3>
+              <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{t.marketCap}</h3>
               <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>${globalData ? formatNumber(globalData.total_market_cap?.usd) : '...'}</p>
             </div>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
-              <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>Добовий обсяг торгів (24 год)</h3>
+              <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{t.volume}</h3>
               <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>${globalData ? formatNumber(globalData.total_volume?.usd) : '...'}</p>
             </div>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
-              <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>Ринкове домінування BTC</h3>
+              <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{t.dominance}</h3>
               <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#f7931a' }}>{globalData ? globalData.market_cap_percentage?.btc?.toFixed(1) : '...'}%</p>
             </div>
 
             <div style={{ gridColumn: '1 / -1', background: '#1e2329', padding: '30px', borderRadius: '15px', border: '1px solid #2b3139', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <h3 style={{ color: '#aaa', fontSize: '1rem', margin: '0 0 15px 0', textTransform: 'uppercase' }}>Fear & Greed Index</h3>
+              <h3 style={{ color: '#aaa', fontSize: '1rem', margin: '0 0 15px 0', textTransform: 'uppercase' }}>{t.fng}</h3>
               <p style={{ fontSize: '2.5rem', fontWeight: '900', margin: 0, color: fearGreed ? getFearGreedColor(fearGreed.value) : '#fff' }}>{fearGreed ? `${fearGreed.value} / 100` : '...'}</p>
-              <p style={{ margin: '10px 0 0 0', fontSize: '1.1rem', color: '#aaa' }}>{fearGreed ? fearGreed.value_classification : ''}</p>
+              <p style={{ margin: '10px 0 0 0', fontSize: '1.1rem', color: '#aaa' }}>{fearGreed ? (lang === 'ua' ? (fearGreed.value_classification.replace("Extreme Fear", "Екстремальний страх").replace("Fear", "Страх").replace("Neutral", "Нейтрально").replace("Greed", "Жадібність").replace("Extreme Greed", "Екстремальна жадібність")) : fearGreed.value_classification) : ''}</p>
             </div>
           </div>
         </div>

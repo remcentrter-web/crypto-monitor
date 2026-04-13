@@ -19,6 +19,30 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 const CHART_GREEN = '#00c087'; 
 const CHART_RED = '#ff4343'; 
 
+// 🔥 СЛОВНИК ОНОВЛЕНО: ПРИБРАЛИ ЖОРСТКУ ПРИВ'ЯЗКУ ДО USD
+const translations = {
+  ua: {
+    details: "ДЕТАЛІ", proChart: "📊 Проф. графік", live: "⚡ НАЖИВО (24Г)",
+    hint: "*Крутіть коліщатко для наближення. Двічі клікніть, щоб скинути масштаб.",
+    analyzing: "Аналізуємо графік... ⏳",
+    rank: "Рейтинг у світі", cap: "Капіталізація", max24: "Max (24г)", min24: "Min (24г)", vol24: "Об'єм (24г)", ath: "All-Time High",
+    calcTitle: "Калькулятор", calcPlaceholder: "Введіть суму в", calcGet: "Ви отримаєте:",
+    alertTitle: "Сповіщення ціни", alertPlaceholder: "Напр.", btnUp: "📈 Вище", btnDown: "📉 Нижче",
+    proTerminal: "Професійний термінал", chartPrice: "Ціна", currentPrice: "Поточна ціна",
+    general: "Загальний:", localTrend: "Локальний тренд:", time: "Час:"
+  },
+  en: {
+    details: "DETAILS", proChart: "📊 Pro Chart", live: "⚡ LIVE (24H)",
+    hint: "*Scroll to zoom. Double click to reset zoom.",
+    analyzing: "Analyzing chart... ⏳",
+    rank: "Global Rank", cap: "Market Cap", max24: "Max (24h)", min24: "Min (24h)", vol24: "Volume (24h)", ath: "All-Time High",
+    calcTitle: "Calculator", calcPlaceholder: "Enter amount in", calcGet: "You will get:",
+    alertTitle: "Price Alert", alertPlaceholder: "E.g.", btnUp: "📈 Above", btnDown: "📉 Below",
+    proTerminal: "Professional Terminal", chartPrice: "Price", currentPrice: "Current Price",
+    general: "Overall:", localTrend: "Local Trend:", time: "Time:"
+  }
+};
+
 const crosshairPlugin = {
   id: 'crosshair',
   afterDraw: (chart) => {
@@ -37,25 +61,34 @@ const crosshairPlugin = {
         ctx.lineWidth = 1;
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.setLineDash([4, 4]);
-
         ctx.beginPath();
         ctx.moveTo(x, topY);
         ctx.lineTo(x, bottomY);
         ctx.stroke();
-
         ctx.beginPath();
         ctx.moveTo(leftX, y);
         ctx.lineTo(rightX, y);
         ctx.stroke();
-
         ctx.restore();
       }
     }
   }
 };
 
-const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, handleAddAlert }) => {
-  const [usdAmount, setUsdAmount] = useState('');
+// 🔥 ДОДАНО ПРОПСИ ДЛЯ ВАЛЮТИ (currencySymbol, currencyCode)
+const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, handleAddAlert, currencySymbol = '$', currencyCode = 'usd' }) => {
+  const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentLang = localStorage.getItem('app_lang') || 'ua';
+      if (currentLang !== lang) setLang(currentLang);
+    }, 300);
+    return () => clearInterval(interval);
+  }, [lang]);
+
+  const t = translations[lang];
+
+  const [fiatAmount, setFiatAmount] = useState('');
   const [alertPrice, setAlertPrice] = useState(''); 
   const [isLoading, setIsLoading] = useState(true);
   const [chartHistory, setChartHistory] = useState([]);
@@ -74,13 +107,14 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
     setIsVisible(true);
   }, []);
 
+  // 🔥 ОНОВЛЕНО ЗАПИТ: ТЕПЕР ТУТ ДИНАМІЧНА ВАЛЮТА ЗАМІСТЬ USD
   useEffect(() => {
     const fetchHistory = async () => {
       setIsLoading(true);
       try {
         const correctId = data?.id || coinId.toLowerCase();
         const response = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${correctId}/market_chart?vs_currency=usd&days=1`
+          `https://api.coingecko.com/api/v3/coins/${correctId}/market_chart?vs_currency=${currencyCode}&days=1`
         );
 
         if (!response.ok) throw new Error('Ліміт API');
@@ -104,7 +138,7 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
     };
 
     if (coinId) fetchHistory();
-  }, [coinId, data, currentPrice]);
+  }, [coinId, data, currentPrice, currencyCode]);
 
   if (!coinId) return null;
 
@@ -127,7 +161,7 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
     labels: labels,
     datasets: [
       {
-        label: 'Ціна USD',
+        label: `${t.chartPrice} ${currencyCode.toUpperCase()}`,
         data: prices,
         fill: true,
         tension: 0.3,
@@ -175,7 +209,7 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
         },
       },
       {
-        label: 'Поточна ціна',
+        label: t.currentPrice,
         data: Array(prices.length).fill(currentPrice),
         borderColor: 'rgba(255, 255, 255, 0.1)',
         borderWidth: 1,
@@ -216,19 +250,14 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
             } else if (idx > 0) {
               color = prices[idx] >= prices[idx - 1] ? CHART_GREEN : CHART_RED;
             }
-            return {
-                borderColor: color,
-                backgroundColor: color,
-                borderWidth: 2,
-            };
+            return { borderColor: color, backgroundColor: color, borderWidth: 2 };
           },
           label: (context) => {
             const currentVal = context.parsed.y;
             const startVal = prices[0];
             const diffPercent = ((currentVal - startVal) / startVal) * 100;
             const sign = diffPercent >= 0 ? '▲ +' : '▼ ';
-            
-            return `Загальний: ${sign}${diffPercent.toFixed(2)}% | $${currentVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}`;
+            return `${t.general} ${sign}${diffPercent.toFixed(2)}% | ${currencySymbol}${currentVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}`;
           },
           afterLabel: (context) => {
             const idx = context.dataIndex;
@@ -237,44 +266,31 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
               const currVal = prices[idx];
               const stepDiff = ((currVal - prevVal) / prevVal) * 100;
               const stepSign = stepDiff >= 0 ? '+' : '';
-              return `Локальний тренд: ${stepSign}${stepDiff.toFixed(3)}%`;
+              return `${t.localTrend} ${stepSign}${stepDiff.toFixed(3)}%`;
             }
             return null;
           },
-          title: (tooltipItems) => `Час: ${tooltipItems[0].label}`
+          title: (tooltipItems) => `${t.time} ${tooltipItems[0].label}`
         }
       },
       zoom: {
-        pan: {
-          enabled: true,
-          mode: 'x',
-        },
-        zoom: {
-          wheel: { enabled: true, speed: 0.05 },
-          pinch: { enabled: true },
-          drag: { enabled: false },
-          mode: 'x',
-        }
+        pan: { enabled: true, mode: 'x' },
+        zoom: { wheel: { enabled: true, speed: 0.05 }, pinch: { enabled: true }, drag: { enabled: false }, mode: 'x' }
       }
     },
     scales: {
       x: { 
         display: true,
         grid: { display: false, drawBorder: false },
-        ticks: {
-          color: '#8e9eaf',
-          maxTicksLimit: 6,
-          maxRotation: 0,
-          font: { size: 10 }
-        }
+        ticks: { color: '#8e9eaf', maxTicksLimit: 6, maxRotation: 0, font: { size: 10 } }
       },
       y: { display: false },
     },
     interaction: { mode: 'nearest', axis: 'x', intersect: false }
   };
 
-  const cryptoAmount = usdAmount && data?.price 
-    ? (parseFloat(usdAmount) / currentPrice).toFixed(6)
+  const cryptoAmount = fiatAmount && data?.price 
+    ? (parseFloat(fiatAmount) / currentPrice).toFixed(6)
     : '0.00';
 
   const handleDoubleClick = () => {
@@ -298,22 +314,12 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
           }
           .pro-chart-btn {
             background: rgba(255, 255, 255, 0.05); 
-            color: #8e9eaf; 
-            border: 1px solid #2b3139; 
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
+            color: #8e9eaf; border: 1px solid #2b3139; 
+            padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
           }
           .pro-chart-btn:hover {
-            background: rgba(255, 255, 255, 0.1); 
-            color: #fff; 
-            border-color: #444c56;
+            background: rgba(255, 255, 255, 0.1); color: #fff; border-color: #444c56;
           }
         `}
       </style>
@@ -330,7 +336,6 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {coinId.toUpperCase()}
-                  
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
@@ -340,12 +345,11 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
                   >
                     {isFavorite ? '★' : '☆'}
                   </button>
-
-                  <span style={{ color: '#aaa', fontSize: '1rem', fontWeight: 'normal', marginLeft: '5px' }}>ДЕТАЛІ</span>
+                  <span style={{ color: '#aaa', fontSize: '1rem', fontWeight: 'normal', marginLeft: '5px' }}>{t.details}</span>
                 </h2>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '5px' }}>
                   <span style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#fff' }}>
-                    {data?.price ? '$' + data.price : '...'}
+                    {data?.price ? currencySymbol + data.price : '...'}
                   </span>
                   <span style={{ fontSize: '1rem', fontWeight: 'bold', color: priceColor }}>
                     {isPositive ? '▲' : '▼'} {data?.change}%
@@ -356,26 +360,24 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
 
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
               <button className="pro-chart-btn" onClick={() => setShowProChart(true)}>
-                📊 Проф. графік
+                {t.proChart}
               </button>
-
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(247, 147, 26, 0.1)', border: '1px solid rgba(247, 147, 26, 0.3)', padding: '6px 12px', borderRadius: '20px', color: '#f7931a', fontSize: '0.85rem', fontWeight: 'bold', height: 'fit-content' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f7931a', animation: 'pulseLiveModal 2s infinite' }}></div>
-                ⚡ НАЖИВО (24Г)
+                {t.live}
               </div>
             </div>
-
           </div>
 
           <div className="modal-main-row" style={{ marginTop: '20px' }}>
             <div className="modal-chart-container" style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#aaa', marginBottom: '10px' }}>
-                *Крутіть коліщатко для наближення. Двічі клікніть, щоб скинути масштаб.
+                {t.hint}
               </div>
               <div style={{ height: '300px', width: '100%', cursor: 'crosshair' }} onDoubleClick={handleDoubleClick}>
                 {isLoading ? (
                   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>
-                    Аналізуємо графік... ⏳
+                    {t.analyzing}
                   </div>
                 ) : (
                   <div style={{ height: '100%', animation: isVisible ? 'drawChartRevealModal 1s ease-out forwards' : 'none' }}>
@@ -387,69 +389,66 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
 
             <div className="modal-stats-grid">
               <div className="stat-item">
-                <span className="stat-label">Рейтинг у світі</span>
+                <span className="stat-label">{t.rank}</span>
                 <strong className="stat-value">#{data?.rank || '---'}</strong>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Капіталізація</span>
-                <strong className="stat-value">${formatNumber(data?.marketCap)}</strong>
+                <span className="stat-label">{t.cap}</span>
+                <strong className="stat-value">{currencySymbol}{formatNumber(data?.marketCap)}</strong>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Max (24г)</span>
-                <strong className="stat-value" style={{ color: CHART_GREEN }}>${data?.high24h?.toLocaleString() || '---'}</strong>
+                <span className="stat-label">{t.max24}</span>
+                <strong className="stat-value" style={{ color: CHART_GREEN }}>{currencySymbol}{data?.high24h?.toLocaleString() || '---'}</strong>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Min (24г)</span>
-                <strong className="stat-value" style={{ color: CHART_RED }}>${data?.low24h?.toLocaleString() || '---'}</strong>
+                <span className="stat-label">{t.min24}</span>
+                <strong className="stat-value" style={{ color: CHART_RED }}>{currencySymbol}{data?.low24h?.toLocaleString() || '---'}</strong>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Об'єм (24г)</span>
-                <strong className="stat-value">${formatNumber(data?.volume)}</strong>
+                <span className="stat-label">{t.vol24}</span>
+                <strong className="stat-value">{currencySymbol}{formatNumber(data?.volume)}</strong>
               </div>
               <div className="stat-item">
-                <span className="stat-label">All-Time High</span>
-                <strong className="stat-value" style={{ color: '#f7931a' }}>${data?.ath?.toLocaleString() || '---'}</strong>
+                <span className="stat-label">{t.ath}</span>
+                <strong className="stat-value" style={{ color: '#f7931a' }}>{currencySymbol}{data?.ath?.toLocaleString() || '---'}</strong>
               </div>
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
             <div className="calculator-section" style={{ margin: 0 }}>
-              <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Калькулятор</h3>
+              <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>{t.calcTitle}</h3>
               <div className="calc-input-group">
                 <input 
                   type="number" 
-                  placeholder="Введіть суму в USD" 
-                  value={usdAmount}
+                  placeholder={`${t.calcPlaceholder} ${currencyCode.toUpperCase()}`} 
+                  value={fiatAmount}
                   min="0"
                   onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val >= 0 || val === '') setUsdAmount(val);
+                    if (val >= 0 || val === '') setFiatAmount(val);
                   }}
                 />
-                <span className="currency-label">USD</span>
+                <span className="currency-label">{currencyCode.toUpperCase()}</span>
               </div>
               
               <div className="calc-results-container">
-                <p className="calc-result">Ви отримаєте: <strong>{cryptoAmount} {coinId.toUpperCase()}</strong></p>
-                <p className="calc-result uah-style" style={{ color: '#aaa', marginTop: '5px' }}>
-                  В гривнях (UAH): <strong style={{ color: 'white' }}>~{(usdAmount * 40.2).toLocaleString()} ₴</strong>
-                </p>
+                <p className="calc-result">{t.calcGet} <strong>{cryptoAmount} {coinId.toUpperCase()}</strong></p>
               </div>
             </div>
 
             <div className="calculator-section" style={{ margin: 0, border: '1px solid #2b3139', background: '#15191e' }}>
-              <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>Сповіщення ціни</h3>
+              <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>{t.alertTitle}</h3>
               <div className="calc-input-group">
                 <input 
                   type="number" 
-                  placeholder={`Напр. ${(currentPrice * 1.05).toFixed(currentPrice < 1 ? 4 : 0)}...`}
+                  placeholder={`${t.alertPlaceholder} ${currencySymbol}${(currentPrice * 1.05).toFixed(currentPrice < 1 ? 4 : 0)}...`}
                   value={alertPrice}
                   min="0"
                   onChange={(e) => setAlertPrice(e.target.value)}
                 />
-                <span className="currency-label">USD</span>
+                <span className="currency-label">{currencyCode.toUpperCase()}</span>
               </div>
               
               <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
@@ -464,7 +463,7 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
                   onMouseEnter={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.2)'}
                   onMouseLeave={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.1)'}
                 >
-                  📈 Вище
+                  {t.btnUp}
                 </button>
                 <button 
                   onClick={() => {
@@ -477,7 +476,7 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
                   onMouseEnter={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.2)'}
                   onMouseLeave={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.1)'}
                 >
-                  📉 Нижче
+                  {t.btnDown}
                 </button>
               </div>
             </div>
@@ -485,23 +484,19 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
         </div>
       </div>
 
-      {/* 🔥 ОНОВЛЕНЕ ПОВНОЕКРАННЕ ВІКНО 🔥 */}
       {showProChart && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: '#0d1117', zIndex: 100000,
           display: 'flex', flexDirection: 'column'
         }}>
-          {/* Оновлена Шапка графіка */}
           <div style={{ 
             padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
             background: '#15191e', borderBottom: '1px solid #2b3139' 
           }}>
             <h2 style={{ margin: 0, color: '#fff', fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {/* 🔥 СМАЙЛИК ВИДАЛЕНО 🔥 */}
-              {coinId.toUpperCase()} / USD
-              {/* 🔥 СЛОВО TRADINGVIEW ВИДАЛЕНО 🔥 */}
-              <span style={{fontSize: '0.9rem', color: '#8e9eaf', fontWeight: 'normal'}}>Професійний термінал</span>
+              {coinId.toUpperCase()} / {currencyCode.toUpperCase()}
+              <span style={{fontSize: '0.9rem', color: '#8e9eaf', fontWeight: 'normal'}}>{t.proTerminal}</span>
             </h2>
             <button
               onClick={() => setShowProChart(false)}
@@ -521,7 +516,8 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
           <div style={{ flex: 1, width: '100%', background: '#131722' }}>
             <iframe
               title="TradingView Chart"
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_1&symbol=${coinId.toUpperCase()}USD&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=15191e&studies=[]&theme=dark&style=1&timezone=Europe/Kyiv&locale=uk`}
+              /* Для TradingView зазвичай працює USD, тому залишаємо як є, щоб графік гарантовано завантажився */
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_1&symbol=${coinId.toUpperCase()}USD&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=15191e&studies=[]&theme=dark&style=1&timezone=Europe/Kyiv&locale=${lang === 'ua' ? 'uk' : 'en'}`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               allowFullScreen
             ></iframe>
