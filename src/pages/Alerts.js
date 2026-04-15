@@ -14,8 +14,8 @@ const alertsTranslations = {
   }
 };
 
-const Alerts = ({ alerts, setAlerts, prices, history, onEdit }) => {
-  // 🔥 РАДАР МОВИ
+// 🔥 ДОДАНО ПРОПС currencySymbol, за замовчуванням '$'
+const Alerts = ({ alerts, setAlerts, prices, history, onEdit, currencySymbol = '$' }) => {
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
   useEffect(() => {
     const interval = setInterval(() => {
@@ -72,12 +72,14 @@ const Alerts = ({ alerts, setAlerts, prices, history, onEdit }) => {
                 <span style={{ fontSize: '0.75rem', color: isUp ? '#00c087' : '#ff4343', fontWeight: 'bold' }}>
                   {isUp ? t.targetAbove : t.targetBelow}
                 </span>
-                <div style={{ fontSize: '1.6rem', fontWeight: '800', marginTop: '5px' }}>${alert.targetPrice}</div>
+                {/* 🔥 ЗАМІНИЛИ $ НА currencySymbol */}
+                <div style={{ fontSize: '1.6rem', fontWeight: '800', marginTop: '5px' }}>{currencySymbol}{alert.targetPrice}</div>
               </div>
 
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 15px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#555', fontSize: '0.85rem' }}>{t.now}</span>
-                <span style={{ fontWeight: 'bold', fontSize: '1rem', color: isClose ? (isUp ? '#00c087' : '#ff4343') : '#8e9eaf' }}>${currentPrice}</span>
+                {/* 🔥 ЗАМІНИЛИ $ НА currencySymbol */}
+                <span style={{ fontWeight: 'bold', fontSize: '1rem', color: isClose ? (isUp ? '#00c087' : '#ff4343') : '#8e9eaf' }}>{currencySymbol}{currentPrice}</span>
               </div>
             </div>
           );
@@ -88,7 +90,8 @@ const Alerts = ({ alerts, setAlerts, prices, history, onEdit }) => {
       <div style={{ background: '#12161c', borderRadius: '20px', border: '1px solid #2b3139' }}>
         {history.map((h, i) => (
           <div key={i} style={{ padding: '15px 25px', borderBottom: '1px solid #2b3139', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span><strong style={{fontSize: '1.1rem'}}>{h.coinId}</strong> <span style={{ color: h.type === 'up' ? '#00c087' : '#ff4343', marginLeft: '10px' }}>{h.type === 'up' ? '↗' : '↘'} ${h.targetPrice}</span></span>
+            {/* 🔥 ЗАМІНИЛИ $ НА currencySymbol */}
+            <span><strong style={{fontSize: '1.1rem'}}>{h.coinId}</strong> <span style={{ color: h.type === 'up' ? '#00c087' : '#ff4343', marginLeft: '10px' }}>{h.type === 'up' ? '↗' : '↘'} {currencySymbol}{h.targetPrice}</span></span>
             <span style={{ color: '#444', fontSize: '0.75rem' }}>{h.time}</span>
           </div>
         ))}

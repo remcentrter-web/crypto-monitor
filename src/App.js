@@ -71,11 +71,10 @@ function App() {
     localStorage.setItem('app_currency', currency);
   }, [currency]);
 
-  const [prices, setPrices] = useState({ _currency: 'usd' });
+  const [prices, setPrices] = useState({ _currency: currency });
   const [lastUpdated, setLastUpdated] = useState('');
   
-  // 🔥 ВИПРАВЛЕНО БАГ ЗІ СПАЛАХАМИ
-  const prevPricesRef = useRef({ _currency: 'usd' });
+  const prevPricesRef = useRef({ _currency: currency });
   const [selectedCoin, setSelectedCoin] = useState(null);
   
   const [coins, setCoins] = useState([]); 
@@ -144,7 +143,7 @@ function App() {
   };
 
   useEffect(() => {
-    if (alerts.length === 0 || Object.keys(prices).length === 0) return;
+    if (alerts.length === 0 || Object.keys(prices).length <= 1) return;
 
     let alertsToKeep = [];
     let newlyTriggered = []; 
@@ -192,7 +191,6 @@ function App() {
 
       if (Array.isArray(data)) {
         setPrices(prev => {
-          // 🔥 ЛОГІКА, ЩОБ НЕ БЛИМАЛО ПРИ ЗМІНІ ВАЛЮТИ
           const isSameCurrency = prev._currency === currency;
           const results = { _currency: currency };
           
@@ -202,15 +200,13 @@ function App() {
               ? item.current_price.toFixed(6) 
               : item.current_price.toFixed(item.current_price > 1 ? 2 : 4);
 
-            let dir = 'up'; 
-            // Порівнюємо ціни ТІЛЬКИ якщо валюта не змінювалась
+            let dir = prev[symbol]?.direction || 'up'; 
+            
             if (isSameCurrency && prev[symbol]) {
               if (parseFloat(formattedPrice) > parseFloat(prev[symbol].price)) {
                 dir = 'up';
               } else if (parseFloat(formattedPrice) < parseFloat(prev[symbol].price)) {
                 dir = 'down';
-              } else {
-                dir = prev[symbol].direction || 'up'; 
               }
             }
 
@@ -230,8 +226,7 @@ function App() {
             };
           });
 
-          // Якщо валюта змінилась, стираємо стару історію цін
-          prevPricesRef.current = isSameCurrency ? prev : { _currency: currency };
+          prevPricesRef.current = isSameCurrency ? prev : { _currency: currency, ...results };
           return results;
         });
         
@@ -282,8 +277,8 @@ function App() {
     const isPositiveChange = parseFloat(changePercent) >= 0;
     const isFavorite = favorites.includes(id);
 
-    // 🔥 БЛИМАННЯ ПРАЦЮЄ ТІЛЬКИ ЯКЩО ЦЕ ТА САМА ВАЛЮТА
-    const flashClass = (currentPrice && prevPrice && currentPrice !== prevPrice) 
+    const isSameCurrencyForFlash = prices._currency === prevPricesRef.current._currency;
+    const flashClass = (isSameCurrencyForFlash && currentPrice && prevPrice && currentPrice !== prevPrice) 
       ? (parseFloat(currentPrice) > parseFloat(prevPrice) ? 'up-flash' : 'down-flash') 
       : '';
 
@@ -545,7 +540,8 @@ function App() {
               setFavorites={setFavorites} 
             />
           } />
-          <Route path="/alerts" element={<Alerts alerts={alerts} setAlerts={setAlerts} prices={prices} history={alertHistory} onEdit={handleEditAlert} />} />
+          {/* 🔥 ПЕРЕДАЄМО curSymbol СЮДИ */}
+          <Route path="/alerts" element={<Alerts alerts={alerts} setAlerts={setAlerts} prices={prices} history={alertHistory} onEdit={handleEditAlert} currencySymbol={curSymbol} />} />
 
         </Routes>
 

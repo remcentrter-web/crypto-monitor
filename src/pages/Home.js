@@ -35,17 +35,26 @@ const homeTranslations = {
   }
 };
 
+const currencySymbols = {
+  usd: '$', eur: '€', gbp: '£', pln: 'zł', uah: '₴'
+};
+
 function Home({ coins = [] }) {
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
+  const [currency, setCurrency] = useState(localStorage.getItem('app_currency') || 'usd');
+  
   useEffect(() => {
     const interval = setInterval(() => {
       const currentLang = localStorage.getItem('app_lang') || 'ua';
+      const currentCurrency = localStorage.getItem('app_currency') || 'usd';
       if (currentLang !== lang) setLang(currentLang);
+      if (currentCurrency !== currency) setCurrency(currentCurrency);
     }, 300);
     return () => clearInterval(interval);
-  }, [lang]);
+  }, [lang, currency]);
 
   const t = homeTranslations[lang];
+  const curSymbol = currencySymbols[currency] || '$';
 
   const [globalData, setGlobalData] = useState(cachedGlobalData);
   const [fearGreed, setFearGreed] = useState(cachedFearGreed);
@@ -210,7 +219,7 @@ function Home({ coins = [] }) {
                       <img src={coin.image} alt={coin.name} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
                       <div>
                         <h4 style={{ margin: 0, fontSize: '1.2rem', color: '#fff' }}>{coin.symbol.toUpperCase()}</h4>
-                        <p style={{ margin: 0, fontSize: '1rem', color: '#aaa' }}>${coin.current_price.toLocaleString()}</p>
+                        <p style={{ margin: 0, fontSize: '1rem', color: '#aaa' }}>{curSymbol}{coin.current_price.toLocaleString()}</p>
                       </div>
                     </div>
                     <div style={{ color: '#00e676', fontWeight: 'bold', fontSize: '1.2rem' }}>+{coin.price_change_percentage_24h.toFixed(2)}%</div>
@@ -222,7 +231,7 @@ function Home({ coins = [] }) {
                       <img src={coin.image} alt={coin.name} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
                       <div>
                         <h4 style={{ margin: 0, fontSize: '1.2rem', color: '#fff' }}>{coin.symbol.toUpperCase()}</h4>
-                        <p style={{ margin: 0, fontSize: '1rem', color: '#aaa' }}>${coin.current_price.toLocaleString()}</p>
+                        <p style={{ margin: 0, fontSize: '1rem', color: '#aaa' }}>{curSymbol}{coin.current_price.toLocaleString()}</p>
                       </div>
                     </div>
                     <div style={{ color: '#ff4d4d', fontWeight: 'bold', fontSize: '1.2rem' }}>{coin.price_change_percentage_24h.toFixed(2)}%</div>
@@ -234,7 +243,8 @@ function Home({ coins = [] }) {
             )}
           </div>
 
-          {bitcoinData && <BtcChart btcData={bitcoinData} />}
+          {/* 🔥 ПЕРЕДАЄМО ВАЛЮТУ ТА МОВУ У ВЕЛИКИЙ ГРАФІК */}
+          {bitcoinData && <BtcChart btcData={bitcoinData} currencySymbol={curSymbol} currencyCode={currency} lang={lang} />}
 
           <div style={{ width: '100%', maxWidth: '1000px', textAlign: 'left', marginBottom: '25px' }}>
             <h2 style={{ fontSize: '1.5rem', marginBottom: '0', color: '#fff' }}>{t.globalTitle}</h2>
@@ -245,11 +255,13 @@ function Home({ coins = [] }) {
           }}>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
               <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{t.marketCap}</h3>
-              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>${globalData ? formatNumber(globalData.total_market_cap?.usd) : '...'}</p>
+              {/* 🔥 ДИНАМІЧНА ВАЛЮТА ДЛЯ КАПІТАЛІЗАЦІЇ */}
+              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>{curSymbol}{globalData ? formatNumber(globalData.total_market_cap?.[currency]) : '...'}</p>
             </div>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
               <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{t.volume}</h3>
-              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>${globalData ? formatNumber(globalData.total_volume?.usd) : '...'}</p>
+              {/* 🔥 ДИНАМІЧНА ВАЛЮТА ДЛЯ ОБСЯГУ */}
+              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>{curSymbol}{globalData ? formatNumber(globalData.total_volume?.[currency]) : '...'}</p>
             </div>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
               <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{t.dominance}</h3>

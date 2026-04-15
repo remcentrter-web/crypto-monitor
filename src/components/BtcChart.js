@@ -17,10 +17,34 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 const CHART_GREEN = '#00c087'; 
 const CHART_RED = '#ff4343';   
 
-const BtcChart = ({ btcData }) => {
+// 🔥 СЛОВНИК ДЛЯ ГРАФІКА
+const translations = {
+  ua: {
+    labelBtc: "Ціна BTC",
+    currentPrice: "Поточна ціна",
+    live: "⚡ НАЖИВО: АКТУАЛЬНО (24Г)",
+    min: "Мін. 24г:",
+    max: "Макс. 24г:",
+    analyzing: "Аналізуємо ринок... ⏳",
+    time: "Час:"
+  },
+  en: {
+    labelBtc: "BTC Price",
+    currentPrice: "Current Price",
+    live: "⚡ LIVE: ACTUAL (24H)",
+    min: "Min 24h:",
+    max: "Max 24h:",
+    analyzing: "Analyzing market... ⏳",
+    time: "Time:"
+  }
+};
+
+// 🔥 ДОДАНО ПРОПСИ ДЛЯ МОВИ ТА ВАЛЮТИ
+const BtcChart = ({ btcData, currencySymbol = '$', currencyCode = 'usd', lang = 'ua' }) => {
   const [chartHistory, setChartHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  const t = translations[lang] || translations.ua;
   const chartRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -42,7 +66,8 @@ const BtcChart = ({ btcData }) => {
     const fetchBtcHistory = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1');
+        // 🔥 ДИНАМІЧНИЙ ЗАПИТ ВАЛЮТИ
+        const res = await fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=${currencyCode}&days=1`);
         if (!res.ok) throw new Error('Ліміт API');
         const data = await res.json();
         // Зберігаємо повні дані з часом
@@ -61,7 +86,7 @@ const BtcChart = ({ btcData }) => {
       }
     };
     if (btcData) fetchBtcHistory();
-  }, [btcData]);
+  }, [btcData, currencyCode]); // Перезавантажуємо при зміні валюти
 
   if (!btcData) return null;
 
@@ -76,7 +101,7 @@ const BtcChart = ({ btcData }) => {
     labels: labels,
     datasets: [
       {
-        label: 'Ціна BTC ($)',
+        label: `${t.labelBtc} (${currencySymbol})`,
         data: prices,
         fill: true,
         tension: 0.3, 
@@ -94,14 +119,14 @@ const BtcChart = ({ btcData }) => {
           const gradientColor = isGrowing ? CHART_GREEN : CHART_RED;
 
           const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          // ЗРОБИЛИ ФОН ЩЕ ПРОЗОРІШИМ (було 33, стало 15)
+          // 🔥 ТВІЙ ПРОЗОРИЙ ФОН ЗБЕРЕЖЕНО (15)
           gradient.addColorStop(0, `${gradientColor}15`); 
           gradient.addColorStop(1, `${gradientColor}00`); 
           return gradient;
         },
       },
       {
-        label: 'Поточна ціна',
+        label: t.currentPrice,
         data: Array(prices.length).fill(currentPrice),
         borderColor: 'rgba(255, 255, 255, 0.2)',
         borderWidth: 1,
@@ -133,13 +158,13 @@ const BtcChart = ({ btcData }) => {
           return tooltipItem.datasetIndex === 0; 
         },
         callbacks: {
-          label: (context) => `$${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-          title: (tooltipItems) => `Час: ${tooltipItems[0].label}`
+          // 🔥 ДИНАМІЧНА ВАЛЮТА У ТУЛТИПІ
+          label: (context) => `${currencySymbol}${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+          title: (tooltipItems) => `${t.time} ${tooltipItems[0].label}`
         }
       }
     },
     scales: { 
-      // МАГІЯ ОСІ X: Показуємо час під графіком
       x: { 
         display: true,
         grid: { display: false, drawBorder: false },
@@ -193,7 +218,8 @@ const BtcChart = ({ btcData }) => {
               </h3>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px', marginTop: '5px' }}>
                 <span style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff' }}>
-                  ${currentPrice.toLocaleString()}
+                  {/* 🔥 ДИНАМІЧНА ВАЛЮТА */}
+                  {currencySymbol}{currentPrice.toLocaleString()}
                 </span>
                 <span style={{ 
                   fontSize: '1.2rem', fontWeight: 'bold', 
@@ -208,15 +234,16 @@ const BtcChart = ({ btcData }) => {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(247, 147, 26, 0.1)', border: '1px solid rgba(247, 147, 26, 0.3)', padding: '6px 12px', borderRadius: '20px', color: '#f7931a', fontSize: '0.85rem', fontWeight: 'bold' }}>
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f7931a', animation: 'pulseLive 2s infinite' }}></div>
-              ⚡ НАЖИВО: АКТУАЛЬНО (24Г)
+              {t.live}
             </div>
           </div>
         </div>
 
         <div style={{ marginBottom: '30px', padding: '15px', background: '#12161c', borderRadius: '15px', border: '1px solid #2b3139' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', fontSize: '0.9rem', marginBottom: '8px' }}>
-            <span>Мін. 24г: <span style={{color: '#fff'}}>${low.toLocaleString()}</span></span>
-            <span>Макс. 24г: <span style={{color: '#fff'}}>${high.toLocaleString()}</span></span>
+            {/* 🔥 ДИНАМІЧНА ВАЛЮТА ДЛЯ МІН/МАКС */}
+            <span>{t.min} <span style={{color: '#fff'}}>{currencySymbol}{low.toLocaleString()}</span></span>
+            <span>{t.max} <span style={{color: '#fff'}}>{currencySymbol}{high.toLocaleString()}</span></span>
           </div>
           <div style={{ width: '100%', height: '6px', background: '#2b3139', borderRadius: '3px', position: 'relative' }}>
             <div style={{ 
@@ -232,11 +259,10 @@ const BtcChart = ({ btcData }) => {
           </div>
         </div>
 
-        {/* Трохи збільшили висоту, щоб вмістився час */}
         <div style={{ height: '320px', width: '100%' }}>
           {isLoading ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: '1.2rem' }}>
-              Аналізуємо ринок... ⏳
+              {t.analyzing}
             </div>
           ) : (
             <div style={{ height: '100%', animation: isVisible ? 'drawChartReveal 1.5s ease-out forwards' : 'none' }}>
