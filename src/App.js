@@ -28,7 +28,9 @@ const appTranslations = {
     alertCreate: "Сповіщення створено!",
     alertTitle: "Цінове сповіщення",
     alertText1: "Програма зафіксувала, що", alertText2: "перетнув відмітку",
-    alertCurrent: "Поточна ринкова ціна:", alertGotIt: "Зрозуміло, дякую!"
+    alertCurrent: "Поточна ринкова ціна:", alertGotIt: "Зрозуміло, дякую!",
+    logAddedFav: "Додано в обране", logRemovedFav: "Видалено з обраного", logAlertSet: "Створено сповіщення",
+    logLangChanged: "Змінено мову на", logCurChanged: "Змінено валюту на", logTzChanged: "Змінено часовий пояс"
   },
   en: {
     navHome: "Home", navMarket: "Market", navFav: "Favorites", navAlerts: "Alerts",
@@ -44,16 +46,14 @@ const appTranslations = {
     alertCreate: "Alert created!",
     alertTitle: "Price Alert",
     alertText1: "The system detected that", alertText2: "crossed the mark of",
-    alertCurrent: "Current market price:", alertGotIt: "Got it, thanks!"
+    alertCurrent: "Current market price:", alertGotIt: "Got it, thanks!",
+    logAddedFav: "Added to favorites", logRemovedFav: "Removed from favorites", logAlertSet: "Alert created",
+    logLangChanged: "Language changed to", logCurChanged: "Currency changed to", logTzChanged: "Timezone changed"
   }
 };
 
 const currencySymbols = {
-  usd: '$',
-  eur: '€',
-  gbp: '£',
-  pln: 'zł',
-  uah: '₴'
+  usd: '$', eur: '€', gbp: '£', pln: 'zł', uah: '₴'
 };
 
 function App() {
@@ -63,6 +63,25 @@ function App() {
   const [currency, setCurrency] = useState(localStorage.getItem('app_currency') || 'usd');
   const curSymbol = currencySymbols[currency] || '$';
 
+  const [timezone, setTimezone] = useState(localStorage.getItem('app_tz') || 'Europe/Kyiv');
+
+  // 🔥 ДОДАНО СТАН ДЛЯ ЖУРНАЛУ ПОДІЙ ТА ДАТИ РЕЄСТРАЦІЇ
+  const [activityLog, setActivityLog] = useState(() => {
+    const saved = localStorage.getItem('myActivityLog');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [userJoinDate, setUserJoinDate] = useState("");
+
+  // 🔥 ФУНКЦІЯ ДЛЯ ДОДАВАННЯ ПОДІЇ В ЖУРНАЛ
+  const addLogEvent = (text, type = 'blue') => {
+    const time = new Date().toLocaleTimeString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
+    setActivityLog(prev => [{ text, time, type }, ...prev].slice(0, 15)); // Зберігаємо останні 15 подій
+  };
+
+  useEffect(() => {
+    localStorage.setItem('myActivityLog', JSON.stringify(activityLog));
+  }, [activityLog]);
+
   useEffect(() => {
     localStorage.setItem('app_lang', language);
   }, [language]);
@@ -71,9 +90,17 @@ function App() {
     localStorage.setItem('app_currency', currency);
   }, [currency]);
 
+  useEffect(() => {
+    localStorage.setItem('app_tz', timezone);
+  }, [timezone]);
+
   const [prices, setPrices] = useState({ _currency: currency });
-  const [lastUpdated, setLastUpdated] = useState('');
+  const [lastFetchTime, setLastFetchTime] = useState(null);
   
+  const lastUpdatedFormatted = lastFetchTime 
+    ? new Date(lastFetchTime).toLocaleTimeString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone })
+    : '';
+
   const prevPricesRef = useRef({ _currency: currency });
   const [selectedCoin, setSelectedCoin] = useState(null);
   
@@ -98,9 +125,17 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        // 🔥 ВИРАХОВУЄМО ДАТУ РЕЄСТРАЦІЇ З FIREBASE
+        if (currentUser.metadata && currentUser.metadata.creationTime) {
+          const date = new Date(currentUser.metadata.creationTime);
+          const options = { year: 'numeric', month: 'long', day: 'numeric' };
+          setUserJoinDate(date.toLocaleDateString(language === 'ua' ? 'uk-UA' : 'en-US', options));
+        }
+      }
     });
     return () => unsubscribe();
-  }, []);
+  }, [language]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -136,6 +171,8 @@ function App() {
     setAlerts(prev => [...prev, newAlert]);
     setToast({ show: true, message: `${t.alertCreate} (${coinId})`, isAdd: true });
     setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+    // 🔥 ЗАПИС В ЖУРНАЛ: Створення сповіщення
+    addLogEvent(`${t.logAlertSet}: ${coinId} ${type === 'up' ? '▲' : '▼'} ${curSymbol}${targetPrice}`, 'green');
   };
 
   const handleEditAlert = (id, newPrice) => {
@@ -171,15 +208,15 @@ function App() {
   if (newlyTriggered.length > 0) {
       const triggeredWithTime = newlyTriggered.map(item => ({
         ...item,
-        time: new Date().toLocaleTimeString(),
-        date: new Date().toLocaleDateString()
+        time: new Date().toLocaleTimeString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone }),
+        date: new Date().toLocaleDateString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone })
       }));
       
       setAlertHistory(prev => [...triggeredWithTime, ...prev].slice(0, 20));
       setActiveAlertsQueue(prevQueue => [...prevQueue, ...newlyTriggered]);
       setAlerts(alertsToKeep);
     }
-  }, [prices,alerts]);
+  }, [prices,alerts, language, timezone]);
 
   useEffect(() => {
    const fetchTop50 = async () => {
@@ -231,7 +268,7 @@ function App() {
         });
         
         setCoins(data);
-        setLastUpdated(new Date().toLocaleTimeString('uk-UA', { timeZone: 'Europe/Kyiv' }));
+        setLastFetchTime(Date.now());
       }
     } catch (err) {
       console.error("Помилка CoinGecko:", err);
@@ -252,6 +289,11 @@ function App() {
     if (isAdding) {
       setIsPulsing(true);
       setTimeout(() => setIsPulsing(false), 500);
+      // 🔥 ЗАПИС В ЖУРНАЛ: Додано в обране
+      addLogEvent(`${t.logAddedFav}: ${coinId}`, 'green');
+    } else {
+      // 🔥 ЗАПИС В ЖУРНАЛ: Видалено з обраного
+      addLogEvent(`${t.logRemovedFav}: ${coinId}`, 'orange');
     }
 
     setToast({ 
@@ -488,7 +530,7 @@ function App() {
               <Market />
               
               <h1>{t.titleTop3}</h1>
-              <p className="update-time">{t.lastUpdate} {lastUpdated}</p>
+              <p className="update-time">{t.lastUpdate} {lastUpdatedFormatted}</p>
               
               <div className="crypto-container">
                {renderCard('BTC', 'Bitcoin')}
@@ -540,7 +582,6 @@ function App() {
               setFavorites={setFavorites} 
             />
           } />
-          {/* 🔥 ПЕРЕДАЄМО curSymbol СЮДИ */}
           <Route path="/alerts" element={<Alerts alerts={alerts} setAlerts={setAlerts} prices={prices} history={alertHistory} onEdit={handleEditAlert} currencySymbol={curSymbol} />} />
 
         </Routes>
@@ -613,6 +654,8 @@ function App() {
             onLoginSuccess={() => {
               setToast({ show: true, message: t.loginMsg, isAdd: true });
               setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+              // 🔥 ЗАПИС В ЖУРНАЛ: Вхід в акаунт
+              addLogEvent(t.loginMsg, 'green');
             }}
           />
         )}
@@ -628,9 +671,23 @@ function App() {
               handleLogout();
             }}
             currentLang={language}
-            setGlobalLang={setLanguage}
+            setGlobalLang={(newLang) => {
+              setLanguage(newLang);
+              addLogEvent(`${t.logLangChanged} ${newLang.toUpperCase()}`, 'blue');
+            }}
             currentCurrency={currency}
-            setGlobalCurrency={setCurrency}
+            setGlobalCurrency={(newCur) => {
+              setCurrency(newCur);
+              addLogEvent(`${t.logCurChanged} ${newCur.toUpperCase()}`, 'blue');
+            }}
+            currentTimezone={timezone}
+            setGlobalTimezone={(newTz) => {
+              setTimezone(newTz);
+              addLogEvent(t.logTzChanged, 'blue');
+            }}
+            // 🔥 ПЕРЕДАЄМО ЛОГ І ДАТУ В КАБІНЕТ
+            activityLog={activityLog}
+            userJoinDate={userJoinDate}
           />
         )}  
       </div>

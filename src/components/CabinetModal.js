@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { updateProfile, updateEmail, updatePassword } from 'firebase/auth';
+import { db } from '../firebase'; // 🔥 Підключили нашу базу
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; // 🔥 Інструменти для запису
 import './CabinetModal.css';
 
 const PRESET_AVATARS = [
@@ -15,25 +17,33 @@ const translations = {
   ua: {
     menuProfile: "👤 Профіль", menuStats: "📊 Активність", menuSec: "🔒 Безпека", menuSet: "⚙️ Налаштування", menuSup: "🎧 Підтримка", menuAbout: "🚀 Про додаток", logout: "Вийти з акаунта",
     profTitle: "Мій профіль", nickLabel: "Ваш нікнейм", avaLabel: "Швидкий вибір аватара", urlLabel: "Або вставте посилання", saveBtn: "Зберегти зміни", saving: "Збереження...",
-    statTitle: "Аналітика акаунта", statFav: "Обраних монет", statAlert: "Сповіщень", statLog: "Журнал подій", log1: "Успішна авторизація", log2: "Синхронізація з хмарою", log3: "Оновлення котирувань",
+    statTitle: "Аналітика акаунта", statFav: "Обраних монет", statAlert: "Сповіщень", statLog: "Журнал подій", 
+    statEmptyLog: "Подій поки немає", memberSince: "З нами з",
     secTitle: "Безпека", secEmail: "Електронна пошта", secEmailDesc: "Основний ідентифікатор", secPass: "Новий пароль", secPassDesc: "Мінімум 6 символів", secUpdate: "Оновити дані",
-    setTitle: "Загальні налаштування", setLang: "Мова інтерфейсу", setCur: "Основна валюта",
-    supTitle: "Підтримка", supPlace: "Опишіть проблему або залиште побажання...", supBtn: "Надіслати повідомлення",
-    abTitle: "Про Crypto Monitor", abP1: "Твій персональний термінал для аналізу ринку.", abF1: "Швидкість React ⚡", abF1d: "Миттєве завантаження.", abF2: "Надійність Firebase 🔒", abF2d: "Твої дані в безпеці.", abF3: "Точність CoinGecko 📈", abF3d: "Ціни в реальному часі.", abFoot: "Розроблено для трейдерів. Версія 2.0"
+    setTitle: "Загальні налаштування", setLang: "Мова інтерфейсу", setCur: "Основна валюта", setTz: "Часовий пояс",
+    supTitle: "Підтримка", supPlace: "Опишіть проблему або залиште побажання...", supBtn: "Надіслати повідомлення", supSending: "Відправка...",
+    abTitle: "Про Crypto Monitor", abP1: "Твій персональний термінал для аналізу ринку.", abF1: "Швидкість React ⚡", abF1d: "Миттєве завантаження.", abF2: "Надійність Firebase 🔒", abF2d: "Твої дані в безпеці.", abF3: "Точність CoinGecko 📈", abF3d: "Ціни в реальному часі.", abFoot: "Розроблено для трейдерів. Версія 2.0",
+    tzKyiv: "🇺🇦 Київ (UTC+2/3)", tzBerlin: "🇪🇺 Берлін/Париж (UTC+1/2)", tzLondon: "🇬🇧 Лондон (UTC+0/1)", tzNy: "🇺🇸 Нью-Йорк (UTC-5/4)", tzTokyo: "🇯🇵 Токіо (UTC+9)"
   },
   en: {
     menuProfile: "👤 Profile", menuStats: "📊 Activity", menuSec: "🔒 Security", menuSet: "⚙️ Settings", menuSup: "🎧 Support", menuAbout: "🚀 About", logout: "Logout",
     profTitle: "My Profile", nickLabel: "Nickname", avaLabel: "Quick Avatar Select", urlLabel: "Or paste image URL", saveBtn: "Save Changes", saving: "Saving...",
-    statTitle: "Account Analytics", statFav: "Favorite Coins", statAlert: "Active Alerts", statLog: "Event Log", log1: "Successful login", log2: "Cloud synchronization", log3: "Price quotes updated",
+    statTitle: "Account Analytics", statFav: "Favorite Coins", statAlert: "Active Alerts", statLog: "Event Log",
+    statEmptyLog: "No events yet", memberSince: "Member since",
     secTitle: "Security", secEmail: "Email Address", secEmailDesc: "Primary identifier", secPass: "New Password", secPassDesc: "Minimum 6 characters", secUpdate: "Update Security",
-    setTitle: "General Settings", setLang: "Interface Language", setCur: "Main Currency",
-    supTitle: "Support", supPlace: "Describe your issue or leave feedback...", supBtn: "Send Message",
-    abTitle: "About Crypto Monitor", abP1: "Your personal terminal for market analysis.", abF1: "React Speed ⚡", abF1d: "Instant loading.", abF2: "Firebase Security 🔒", abF2d: "Your data is safe.", abF3: "CoinGecko Accuracy 📈", abF3d: "Real-time pricing.", abFoot: "Built for traders. Version 2.0"
+    setTitle: "General Settings", setLang: "Interface Language", setCur: "Main Currency", setTz: "Time Zone",
+    supTitle: "Support", supPlace: "Describe your issue or leave feedback...", supBtn: "Send Message", supSending: "Sending...",
+    abTitle: "About Crypto Monitor", abP1: "Your personal terminal for market analysis.", abF1: "React Speed ⚡", abF1d: "Instant loading.", abF2: "Firebase Security 🔒", abF2d: "Your data is safe.", abF3: "CoinGecko Accuracy 📈", abF3d: "Real-time pricing.", abFoot: "Built for traders. Version 2.0",
+    tzKyiv: "🇺🇦 Kyiv (UTC+2/3)", tzBerlin: "🇪🇺 Berlin/Paris (UTC+1/2)", tzLondon: "🇬🇧 London (UTC+0/1)", tzNy: "🇺🇸 New York (UTC-5/4)", tzTokyo: "🇯🇵 Tokyo (UTC+9)"
   }
 };
 
-// 🔥 ДОДАЛИ ПРОПСИ ДЛЯ ВАЛЮТИ ТАКОЖ (currentCurrency, setGlobalCurrency)
-const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, currentLang, setGlobalLang, currentCurrency, setGlobalCurrency }) => {
+const CabinetModal = ({ 
+  user, onClose, onLogout, favoritesCount, alertsCount, 
+  currentLang, setGlobalLang, currentCurrency, setGlobalCurrency, 
+  currentTimezone, setGlobalTimezone, 
+  activityLog = [], userJoinDate = "" 
+}) => {
   const [activeSection, setActiveSection] = useState('profile');
   const t = translations[currentLang] || translations.ua; 
 
@@ -43,6 +53,7 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, cu
   const [newPassword, setNewPassword] = useState('');
   const [supportMsg, setSupportMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingSupport, setIsSendingSupport] = useState(false); // 🔥 Стан відправки
   const [statusMsg, setStatusMsg] = useState({ text: '', type: '' });
 
   if (!user) return null;
@@ -72,6 +83,31 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, cu
     setIsSaving(false);
   };
 
+  // 🔥 ГОЛОВНА МАГІЯ: Відправка повідомлення в базу Firebase
+  const handleSendSupport = async () => {
+    if (!supportMsg.trim()) return; // Якщо порожньо - нічого не робимо
+    setIsSendingSupport(true);
+
+    try {
+      // Створюємо запис у колекції "support_tickets"
+      await addDoc(collection(db, "support_tickets"), {
+        uid: user.uid,
+        email: user.email,
+        userName: user.displayName || "Anonymous",
+        message: supportMsg,
+        timestamp: serverTimestamp() // Точний час від сервера Firebase
+      });
+
+      notify(currentLang === 'ua' ? 'Надіслано! Дякуємо.' : 'Sent! Thank you.');
+      setSupportMsg(''); // Очищаємо поле вводу
+    } catch (err) {
+      console.error(err);
+      notify(currentLang === 'ua' ? 'Помилка відправки' : 'Send error', 'error');
+    } finally {
+      setIsSendingSupport(false);
+    }
+  };
+
   return (
     <div className="cab-overlay" onClick={onClose}>
       <div className="cab-window" onClick={(e) => e.stopPropagation()}>
@@ -80,7 +116,6 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, cu
         <div className="cab-sidebar">
           <div className="cab-sidebar-user">
             <img src={user.photoURL || PRESET_AVATARS[0]} alt="Avatar" />
-            {/* 🔥 ВИПРАВИВ ЗЛИПАННЯ: додав display: flex та gap */}
             <div className="cab-user-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="cab-username" style={{ fontWeight: 'bold' }}>{user.displayName || 'Trader'}</span>
               <span className="cab-status-online" style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: '8px', background: 'rgba(0, 192, 135, 0.15)', color: '#00c087', border: '1px solid rgba(0, 192, 135, 0.3)' }}>Online</span>
@@ -141,24 +176,34 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, cu
             {activeSection === 'stats' && (
               <div className="cab-section-inner cab-fade-in">
                 <h2 className="cab-h2">{t.statTitle}</h2>
+                <div style={{ textAlign: 'center', color: '#8e9eaf', fontSize: '0.85rem', marginBottom: '15px' }}>
+                  {t.memberSince}: <span style={{ color: '#fff', fontWeight: 'bold' }}>{userJoinDate}</span>
+                </div>
                 <div className="cab-pro-dashboard">
                   <div className="cab-pro-stat-card">
                     <span className="cab-pro-label">{t.statFav}</span>
                     <span className="cab-pro-value">{favoritesCount}</span>
-                    <div className="cab-pro-bar"><div className="cab-pro-fill fav-fill"></div></div>
+                    <div className="cab-pro-bar"><div className="cab-pro-fill fav-fill" style={{ width: `${Math.min(favoritesCount * 10, 100)}%` }}></div></div>
                   </div>
                   <div className="cab-pro-stat-card">
                     <span className="cab-pro-label">{t.statAlert}</span>
                     <span className="cab-pro-value">{alertsCount}</span>
-                    <div className="cab-pro-bar"><div className="cab-pro-fill alert-fill"></div></div>
+                    <div className="cab-pro-bar"><div className="cab-pro-fill alert-fill" style={{ width: `${Math.min(alertsCount * 20, 100)}%` }}></div></div>
                   </div>
                 </div>
-                
                 <h3 className="cab-sub-title">{t.statLog}</h3>
                 <div className="cab-activity-log">
-                    <div className="cab-log-item"><span className="cab-dot green"></span> {t.log1}</div>
-                    <div className="cab-log-item"><span className="cab-dot blue"></span> {t.log2}</div>
-                    <div className="cab-log-item"><span className="cab-dot orange"></span> {t.log3}</div>
+                    {activityLog.length > 0 ? activityLog.map((log, index) => (
+                      <div key={index} className="cab-log-item" style={{ animationDelay: `${index * 0.05}s` }}>
+                        <span className={`cab-dot ${log.type || 'blue'}`}></span> 
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                          <span>{log.text}</span>
+                          <span style={{ fontSize: '0.7rem', color: '#444' }}>{log.time}</span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#444' }}>{t.statEmptyLog}</div>
+                    )}
                 </div>
               </div>
             )}
@@ -195,7 +240,6 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, cu
                     </div>
                     <div className="cab-setting-row">
                         <span>{t.setCur}</span>
-                        {/* 🔥 ЗМІНЮЄМО ГЛОБАЛЬНУ ВАЛЮТУ */}
                         <select className="cab-select-ui" value={currentCurrency} onChange={(e) => setGlobalCurrency(e.target.value)}>
                             <option value="usd">USD ($)</option>
                             <option value="eur">EUR (€)</option>
@@ -204,11 +248,21 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, cu
                             <option value="uah">UAH (₴)</option>
                         </select>
                     </div>
+                    <div className="cab-setting-row">
+                        <span>{t.setTz}</span>
+                        <select className="cab-select-ui" value={currentTimezone} onChange={(e) => setGlobalTimezone(e.target.value)}>
+                            <option value="Europe/Kyiv">{t.tzKyiv}</option>
+                            <option value="Europe/Berlin">{t.tzBerlin}</option>
+                            <option value="Europe/London">{t.tzLondon}</option>
+                            <option value="America/New_York">{t.tzNy}</option>
+                            <option value="Asia/Tokyo">{t.tzTokyo}</option>
+                        </select>
+                    </div>
                 </div>
               </div>
             )}
 
-            {/* ПІДТРИМКА */}
+            {/* ПІДТРИМКА (ТЕПЕР ПРАЦЮЄ!) */}
             {activeSection === 'support' && (
               <div className="cab-section-inner cab-fade-in">
                 <h2 className="cab-h2">{t.supTitle}</h2>
@@ -218,12 +272,14 @@ const CabinetModal = ({ user, onClose, onLogout, favoritesCount, alertsCount, cu
                         value={supportMsg} 
                         onChange={(e) => setSupportMsg(e.target.value)} 
                         placeholder={t.supPlace}
+                        disabled={isSendingSupport}
                     />
-                    <button className="cab-dark-rounded-btn" onClick={() => { 
-                      notify(currentLang === 'ua' ? 'Надіслано!' : 'Sent!'); 
-                      setSupportMsg(''); 
-                    }}>
-                      {t.supBtn}
+                    <button 
+                      className="cab-dark-rounded-btn" 
+                      onClick={handleSendSupport}
+                      disabled={isSendingSupport || !supportMsg.trim()}
+                    >
+                      {isSendingSupport ? t.supSending : t.supBtn}
                     </button>
                 </div>
               </div>

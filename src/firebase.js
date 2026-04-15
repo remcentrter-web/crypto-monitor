@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 // Твоя конфігурація Firebase (вже з твоїми ключами)
 const firebaseConfig = {
@@ -16,3 +17,4 @@ const app = initializeApp(firebaseConfig);
 
 // Експорт сервісу аутентифікації
 export const auth = getAuth(app);
+export const db = getFirestore(app);   
