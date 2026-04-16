@@ -8,7 +8,10 @@ const favoritesTranslations = {
     sortTitle: "⚙️ Сортування", sortRank: "За рейтингом", sortGrowth: "🚀 Ріст", sortDrop: "📉 Падіння", sortPrice: "💰 Ціна",
     clearBtn: "🧹 Очистити все", pageTitle: "⭐ Моє обране",
     modalTitle: "Очистити список?", modalText1: "Це видалить усі", modalText2: "монети з вашого обраного. Ви впевнені?",
-    btnCancel: "Скасувати", btnConfirm: "Видалити все"
+    btnCancel: "Скасувати", btnConfirm: "Видалити все",
+    // 🔥 СТРОГІ ПЕРЕКЛАДИ ДЛЯ БАНЕРА (БЕЗ СМАЙЛІВ)
+    promoText: "Щоб зняти ліміт та зберігати необмежену кількість монет у хмарному профілі, будь ласка, увійдіть в акаунт або зареєструйтесь.",
+    promoBtn: "Увійти / Зареєструватись"
   },
   en: {
     emptyTitle: "My Favorites", emptyText: "It's empty here. Add coins from the \"Market\" tab!",
@@ -16,12 +19,14 @@ const favoritesTranslations = {
     sortTitle: "⚙️ Sort By", sortRank: "By Rank", sortGrowth: "🚀 Growth", sortDrop: "📉 Drop", sortPrice: "💰 Price",
     clearBtn: "🧹 Clear All", pageTitle: "⭐ My Favorites",
     modalTitle: "Clear the list?", modalText1: "This will remove all", modalText2: "coins from your favorites. Are you sure?",
-    btnCancel: "Cancel", btnConfirm: "Delete All"
+    btnCancel: "Cancel", btnConfirm: "Delete All",
+    // 🔥 СТРОГІ ПЕРЕКЛАДИ ДЛЯ БАНЕРА (БЕЗ СМАЙЛІВ)
+    promoText: "To remove the limit and save an unlimited number of coins in your cloud profile, please log in or register.",
+    promoBtn: "Login / Register"
   }
 };
 
-const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
-  // 🔥 РАДАР МОВИ
+const Favorites = ({ favorites, prices, renderCard, setFavorites, user, openAuth }) => {
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
   useEffect(() => {
     const interval = setInterval(() => {
@@ -67,12 +72,29 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
     setShowConfirmModal(false);
   };
 
+  // 🔥 ПОРОЖНІЙ СТАН З ПРЕМІУМ-БЛОКОМ
   if (favorites.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px 20px', color: '#8e9eaf' }}>
+      <div style={{ textAlign: 'center', padding: '100px 20px', color: '#8e9eaf', maxWidth: '600px', margin: '0 auto' }}>
         <h1 style={{fontSize: '3rem', marginBottom: '20px'}}>⭐</h1>
-        <h2>{t.emptyTitle}</h2>
-        <p>{t.emptyText}</p>
+        <h2 style={{color: '#fff', marginBottom: '15px'}}>{t.emptyTitle}</h2>
+        <p style={{marginBottom: '40px'}}>{t.emptyText}</p>
+        
+        {!user && (
+          <div style={{ background: '#15191e', border: '1px solid #2b3139', borderRadius: '16px', padding: '30px' }}>
+            <p style={{ color: '#e1e8f0', marginBottom: '25px', lineHeight: '1.6', fontSize: '1rem' }}>
+              {t.promoText}
+            </p>
+            <button 
+              onClick={openAuth}
+              style={{ background: '#f7931a', color: '#12161c', border: 'none', padding: '14px 28px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', fontSize: '1rem' }}
+              onMouseEnter={(e) => e.target.style.background = '#ffaa42'}
+              onMouseLeave={(e) => e.target.style.background = '#f7931a'}
+            >
+              {t.promoBtn}
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -113,11 +135,43 @@ const Favorites = ({ favorites, prices, renderCard, setFavorites }) => {
 
       <main className="favorites-main">
         <h1 className="section-title">{t.pageTitle} ({favorites.length})</h1>
+        
         <div className="crypto-container">
           {sortedData.map(coin => (
             renderCard(coin.coinSymbol, coin.name, true)
           ))}
         </div>
+
+        {/* 🔥 ПРЕМІУМ-БАНЕР ДЛЯ ГОСТЕЙ ПЕРЕНЕСЕНО ПІД МОНЕТИ */}
+        {!user && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(247, 147, 26, 0.05) 0%, rgba(255, 215, 0, 0.02) 100%)',
+            border: '1px solid rgba(247, 147, 26, 0.2)',
+            borderRadius: '16px',
+            padding: '20px 25px',
+            marginTop: '30px', /* 🔥 Зробили відступ зверху, щоб відділити від карток */
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '20px'
+          }}>
+            <div style={{ color: '#e1e8f0', fontSize: '0.95rem', lineHeight: '1.6', flex: 1, minWidth: '250px' }}>
+              {t.promoText}
+            </div>
+            <button
+              onClick={openAuth}
+              style={{
+                background: 'transparent', color: '#f7931a', border: '1px solid #f7931a', padding: '10px 20px',
+                borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => { e.target.style.background = '#f7931a'; e.target.style.color = '#12161c'; }}
+              onMouseLeave={(e) => { e.target.style.background = 'transparent'; e.target.style.color = '#f7931a'; }}
+            >
+              {t.promoBtn}
+            </button>
+          </div>
+        )}
       </main>
 
       {showConfirmModal && (

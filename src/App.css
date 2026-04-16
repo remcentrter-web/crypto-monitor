@@ -181,28 +181,27 @@ h2 {
 }
 
 /* Стилі для повідомлення (Toast), що виринає знизу */
+/* 🔥 КРАСИВЕ СПОВІЩЕННЯ ЗВЕРХУ 🔥 */
 .toast-notification {
   position: fixed;
-  bottom: 30px;
+  top: 30px; /* З'являється згори */
   left: 50%;
   transform: translateX(-50%);
   background: #1e2329;
-  color: white;
-  padding: 12px 25px;
-  border-radius: 10px;
+  color: #fff;
+  padding: 15px 25px;
+  border-radius: 12px;
   border: 1px solid #f7931a;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  box-shadow: 0 10px 30px rgba(247, 147, 26, 0.3);
+  z-index: 100000;
   font-weight: bold;
-  animation: toastSlideUp 0.3s ease-out;
+  font-size: 0.95rem;
+  animation: toastSlideDown 0.3s ease-out forwards;
 }
 
-@keyframes toastSlideUp {
-  from { bottom: -50px; opacity: 0; }
-  to { bottom: 30px; opacity: 1; }
+@keyframes toastSlideDown {
+  from { top: -50px; opacity: 0; }
+  to { top: 30px; opacity: 1; }
 }
 /* Контейнер сторінки - робимо його компактнішим */
 .favorites-page-container {

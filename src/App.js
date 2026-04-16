@@ -8,8 +8,10 @@ import Market from './pages/Market';
 import Favorites from './pages/Favorites';
 import Alerts from './pages/Alerts';
 
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+
 import AuthModal from './components/AuthModal';
 import CabinetModal from './components/CabinetModal'; 
 
@@ -30,7 +32,9 @@ const appTranslations = {
     alertText1: "Програма зафіксувала, що", alertText2: "перетнув відмітку",
     alertCurrent: "Поточна ринкова ціна:", alertGotIt: "Зрозуміло, дякую!",
     logAddedFav: "Додано в обране", logRemovedFav: "Видалено з обраного", logAlertSet: "Створено сповіщення",
-    logLangChanged: "Змінено мову на", logCurChanged: "Змінено валюту на", logTzChanged: "Змінено часовий пояс"
+    logLangChanged: "Змінено мову на", logCurChanged: "Змінено валюту на", logTzChanged: "Змінено часовий пояс",
+    // 🔥 ОНОВЛЕНИЙ ЛОЯЛЬНИЙ ТЕКСТ ЛІМІТУ
+    favLimitMsg: "Щоб зберегти більше 5 монет, будь ласка, увійдіть або зареєструйтесь "
   },
   en: {
     navHome: "Home", navMarket: "Market", navFav: "Favorites", navAlerts: "Alerts",
@@ -48,7 +52,9 @@ const appTranslations = {
     alertText1: "The system detected that", alertText2: "crossed the mark of",
     alertCurrent: "Current market price:", alertGotIt: "Got it, thanks!",
     logAddedFav: "Added to favorites", logRemovedFav: "Removed from favorites", logAlertSet: "Alert created",
-    logLangChanged: "Language changed to", logCurChanged: "Currency changed to", logTzChanged: "Timezone changed"
+    logLangChanged: "Language changed to", logCurChanged: "Currency changed to", logTzChanged: "Timezone changed",
+    // 🔥 ОНОВЛЕНИЙ ЛОЯЛЬНИЙ ТЕКСТ ЛІМІТУ
+    favLimitMsg: "To save more than 5 coins, please log in or register 💛"
   }
 };
 
@@ -121,7 +127,7 @@ function App() {
   });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         if (currentUser.metadata && currentUser.metadata.creationTime) {
@@ -129,6 +135,25 @@ function App() {
           const options = { year: 'numeric', month: 'long', day: 'numeric' };
           setUserJoinDate(date.toLocaleDateString(language === 'ua' ? 'uk-UA' : 'en-US', options));
         }
+
+        try {
+          const docRef = doc(db, 'user_favorites', currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            setFavorites(docSnap.data().coins || []);
+          } else {
+            const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
+            setFavorites(localFavs);
+            await setDoc(docRef, { coins: localFavs });
+          }
+        } catch (err) {
+          console.error("Помилка завантаження обраного:", err);
+        }
+
+      } else {
+        const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
+        setFavorites(localFavs);
       }
     });
     return () => unsubscribe();
@@ -137,12 +162,14 @@ function App() {
   const handleLogout = async () => {
     await signOut(auth);
     setToast({ show: true, message: t.logoutMsg, isAdd: false });
-    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000); // 4 секунди
   };
 
   useEffect(() => {
-    localStorage.setItem('myFavorites', JSON.stringify(favorites));
-  }, [favorites]);
+    if (!user) {
+      localStorage.setItem('myFavorites', JSON.stringify(favorites));
+    }
+  }, [favorites, user]);
 
   const [alerts, setAlerts] = useState(() => {
     const saved = localStorage.getItem('myAlerts');
@@ -174,7 +201,7 @@ function App() {
     };
     setAlerts(prev => [...prev, newAlert]);
     setToast({ show: true, message: `${t.alertCreate} (${coinId})`, isAdd: true });
-    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000); // 4 секунди
     addLogEvent(`${t.logAlertSet}: ${coinId} ${type === 'up' ? '▲' : '▼'} ${curSymbol}${targetPrice}`, 'green');
   };
 
@@ -287,12 +314,29 @@ function App() {
     return () => clearInterval(interval);
   }, [currency]);
 
-  const toggleFavorite = (coinId) => {
+  const toggleFavorite = async (coinId) => {
     const isAdding = !favorites.includes(coinId);
     
-    setFavorites(prev => 
-      isAdding ? [...prev, coinId] : prev.filter(id => id !== coinId)
-    );
+    if (isAdding && !user && favorites.length >= 5) {
+      setToast({ show: true, message: t.favLimitMsg, isAdd: false });
+      setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000); // 4 секунди
+      setShowAuthModal(true); 
+      return; 
+    }
+
+    const newFavorites = isAdding 
+      ? [...favorites, coinId] 
+      : favorites.filter(id => id !== coinId);
+
+    setFavorites(newFavorites);
+
+    if (user) {
+      try {
+        await setDoc(doc(db, 'user_favorites', user.uid), { coins: newFavorites });
+      } catch (err) {
+        console.error("Помилка збереження в хмару:", err);
+      }
+    }
 
     if (isAdding) {
       setIsPulsing(true);
@@ -308,7 +352,7 @@ function App() {
       isAdd: isAdding
     });
 
-    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000); // 4 секунди
   };
 
   const renderCard = (id, name, isSmall = false) => {
@@ -416,7 +460,6 @@ function App() {
 
           <div style={{ position: 'relative', margin: '0 auto' }}>
             
-            {/* 🔥 ОНОВЛЕНИЙ ПОШУК З ЛУПОЮ І ХРЕСТИКОМ */}
             <div className={`search-container ${isSearchFocused ? 'focused' : ''}`}>
               <svg className="search-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -428,7 +471,6 @@ function App() {
                 placeholder={t.searchBox}   
                 value={searchQuery}
                 onChange={(e) => {
-                  // Фільтруємо ВСЕ, крім букв і цифр (прибираємо + - = та інші символи)
                   const cleanValue = e.target.value.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄґҐ0-9 ]/g, '');
                   setSearchQuery(cleanValue);
                 }}
@@ -605,12 +647,14 @@ function App() {
             </>
           } />
 
-          <Route path="/favorites" element={
+         <Route path="/favorites" element={
             <Favorites 
               favorites={favorites} 
               prices={prices} 
               renderCard={renderCard} 
               setFavorites={setFavorites} 
+              user={user} /* 🔥 ТЕПЕР ОБРАНЕ ЗНАЄ, ЧИ Є АКАУНТ */
+              openAuth={() => setShowAuthModal(true)} /* 🔥 ПЕРЕДАЛИ ФУНКЦІЮ ВІДКРИТТЯ ВХОДУ */
             />
           } />
           
@@ -629,6 +673,7 @@ function App() {
             user={user}
             currencySymbol={curSymbol}
             currencyCode={currency}
+            openAuth={() => setShowAuthModal(true)}
           />
         )}
 
@@ -682,10 +727,13 @@ function App() {
 
         {showAuthModal && (
           <AuthModal 
-            onClose={() => setShowAuthModal(false)} 
+           onClose={() => {
+          setShowAuthModal(false);
+          setToast({ show: false, message: '', isAdd: true });
+        }}
             onLoginSuccess={() => {
               setToast({ show: true, message: t.loginMsg, isAdd: true });
-              setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
+              setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000); // 4 секунди
               addLogEvent(t.loginMsg, 'green');
             }}
           />

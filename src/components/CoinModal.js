@@ -19,7 +19,6 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 const CHART_GREEN = '#00c087'; 
 const CHART_RED = '#ff4343'; 
 
-// 🔥 СЛОВНИК ОНОВЛЕНО: ПРИБРАЛИ ЖОРСТКУ ПРИВ'ЯЗКУ ДО USD
 const translations = {
   ua: {
     details: "ДЕТАЛІ", proChart: "📊 Проф. графік", live: "⚡ НАЖИВО (24Г)",
@@ -29,7 +28,10 @@ const translations = {
     calcTitle: "Калькулятор", calcPlaceholder: "Введіть суму в", calcGet: "Ви отримаєте:",
     alertTitle: "Сповіщення ціни", alertPlaceholder: "Напр.", btnUp: "📈 Вище", btnDown: "📉 Нижче",
     proTerminal: "Професійний термінал", chartPrice: "Ціна", currentPrice: "Поточна ціна",
-    general: "Загальний:", localTrend: "Локальний тренд:", time: "Час:"
+    general: "Загальний:", localTrend: "Локальний тренд:", time: "Час:",
+    proLockTitle: "Доступ обмежено",
+    proLockMsg: "Професійні графіки TradingView доступні лише для зареєстрованих користувачів. Будь ласка, увійдіть в акаунт або створіть новий.",
+    btnAuth: "Увійти / Зареєструватись" // 🔥 ЗМІНЕНО ТЕКСТ КНОПКИ
   },
   en: {
     details: "DETAILS", proChart: "📊 Pro Chart", live: "⚡ LIVE (24H)",
@@ -39,7 +41,10 @@ const translations = {
     calcTitle: "Calculator", calcPlaceholder: "Enter amount in", calcGet: "You will get:",
     alertTitle: "Price Alert", alertPlaceholder: "E.g.", btnUp: "📈 Above", btnDown: "📉 Below",
     proTerminal: "Professional Terminal", chartPrice: "Price", currentPrice: "Current Price",
-    general: "Overall:", localTrend: "Local Trend:", time: "Time:"
+    general: "Overall:", localTrend: "Local Trend:", time: "Time:",
+    proLockTitle: "Access Restricted",
+    proLockMsg: "Professional TradingView charts are only available to registered users. Please log in or sign up.",
+    btnAuth: "Login / Register" // 🔥 ЗМІНЕНО ТЕКСТ КНОПКИ
   }
 };
 
@@ -75,8 +80,8 @@ const crosshairPlugin = {
   }
 };
 
-// 🔥 ДОДАНО ПРОПСИ ДЛЯ ВАЛЮТИ (currencySymbol, currencyCode)
-const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, handleAddAlert, currencySymbol = '$', currencyCode = 'usd' }) => {
+// 🔥 ДОДАНО openAuth В ПРОПСИ
+const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, handleAddAlert, currencySymbol = '$', currencyCode = 'usd', user, openAuth }) => {
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
   useEffect(() => {
     const interval = setInterval(() => {
@@ -92,7 +97,9 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
   const [alertPrice, setAlertPrice] = useState(''); 
   const [isLoading, setIsLoading] = useState(true);
   const [chartHistory, setChartHistory] = useState([]);
+  
   const [showProChart, setShowProChart] = useState(false);
+  const [showAuthWarning, setShowAuthWarning] = useState(false);
   
   const chartRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -107,7 +114,6 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
     setIsVisible(true);
   }, []);
 
-  // 🔥 ОНОВЛЕНО ЗАПИТ: ТЕПЕР ТУТ ДИНАМІЧНА ВАЛЮТА ЗАМІСТЬ USD
   useEffect(() => {
     const fetchHistory = async () => {
       setIsLoading(true);
@@ -319,7 +325,7 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
             cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
           }
           .pro-chart-btn:hover {
-            background: rgba(255, 255, 255, 0.1); color: #fff; border-color: #444c56;
+            background: rgba(255, 255, 255, 0.1); color: #fff; border-color: #f7931a;
           }
         `}
       </style>
@@ -359,9 +365,20 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
             </div>
 
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-              <button className="pro-chart-btn" onClick={() => setShowProChart(true)}>
+              <button 
+                className="pro-chart-btn" 
+                onClick={() => {
+                  if (user) {
+                    setShowProChart(true);
+                  } else {
+                    setShowAuthWarning(true);
+                  }
+                }}
+              >
                 {t.proChart}
+                {!user && <span style={{ marginLeft: '4px', fontSize: '0.85rem' }}>🔒</span>}
               </button>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(247, 147, 26, 0.1)', border: '1px solid rgba(247, 147, 26, 0.3)', padding: '6px 12px', borderRadius: '20px', color: '#f7931a', fontSize: '0.85rem', fontWeight: 'bold', height: 'fit-content' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f7931a', animation: 'pulseLiveModal 2s infinite' }}></div>
                 {t.live}
@@ -484,7 +501,63 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
         </div>
       </div>
 
-      {showProChart && (
+      {/* 🔥 ОНОВЛЕНА МОДАЛКА З ПОПЕРЕДЖЕННЯМ ДЛЯ НЕАВТОРИЗОВАНИХ */}
+      {showAuthWarning && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000
+        }}>
+          <div style={{
+            position: 'relative', // Додано для правильного розміщення хрестика
+            background: '#1e2329', padding: '35px', borderRadius: '24px',
+            width: '90%', maxWidth: '380px', border: '1px solid #f7931a', textAlign: 'center',
+            boxShadow: '0 10px 40px rgba(247, 147, 26, 0.2)',
+            animation: 'modalOpenAnim 0.25s ease-out forwards'
+          }}>
+            
+            {/* 🔥 КНОПКА ЗАКРИТТЯ (ХРЕСТИК) */}
+            <button 
+              onClick={() => setShowAuthWarning(false)}
+              style={{
+                position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none',
+                color: '#8e9eaf', fontSize: '1.8rem', cursor: 'pointer', transition: '0.2s', padding: 0
+              }}
+              onMouseEnter={(e) => e.target.style.color = '#fff'}
+              onMouseLeave={(e) => e.target.style.color = '#8e9eaf'}
+            >
+              &times;
+            </button>
+
+            <div style={{ fontSize: '3rem', marginBottom: '15px' }}>🔒</div>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '1.4rem', color: '#fff' }}>{t.proLockTitle}</h3>
+            <p style={{ color: '#8e9eaf', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5' }}>
+              {t.proLockMsg}
+            </p>
+            
+            {/* 🔥 ОНОВЛЕНА КНОПКА АВТОРИЗАЦІЇ */}
+            <button 
+              onClick={() => {
+                setShowAuthWarning(false);
+                if (onClose) onClose();
+                if (openAuth) openAuth(); // Викликаємо відкриття вікна входу з App.js
+              }} 
+              style={{ 
+                width: '100%', padding: '14px', background: '#f7931a', border: 'none', 
+                color: '#12161c', fontWeight: 'bold', borderRadius: '14px', 
+                cursor: 'pointer', fontSize: '1rem', transition: '0.2s' 
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#ffaa42'}
+              onMouseLeave={(e) => e.target.style.background = '#f7931a'}
+            >
+              {t.btnAuth}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* САМ ГРАФІК TRADINGVIEW */}
+      {showProChart && user && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: '#0d1117', zIndex: 100000,
@@ -516,7 +589,6 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
           <div style={{ flex: 1, width: '100%', background: '#131722' }}>
             <iframe
               title="TradingView Chart"
-              /* Для TradingView зазвичай працює USD, тому залишаємо як є, щоб графік гарантовано завантажився */
               src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_1&symbol=${coinId.toUpperCase()}USD&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=15191e&studies=[]&theme=dark&style=1&timezone=Europe/Kyiv&locale=${lang === 'ua' ? 'uk' : 'en'}`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               allowFullScreen
