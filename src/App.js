@@ -65,17 +65,15 @@ function App() {
 
   const [timezone, setTimezone] = useState(localStorage.getItem('app_tz') || 'Europe/Kyiv');
 
-  // 🔥 ДОДАНО СТАН ДЛЯ ЖУРНАЛУ ПОДІЙ ТА ДАТИ РЕЄСТРАЦІЇ
   const [activityLog, setActivityLog] = useState(() => {
     const saved = localStorage.getItem('myActivityLog');
     return saved ? JSON.parse(saved) : [];
   });
   const [userJoinDate, setUserJoinDate] = useState("");
 
-  // 🔥 ФУНКЦІЯ ДЛЯ ДОДАВАННЯ ПОДІЇ В ЖУРНАЛ
   const addLogEvent = (text, type = 'blue') => {
     const time = new Date().toLocaleTimeString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
-    setActivityLog(prev => [{ text, time, type }, ...prev].slice(0, 15)); // Зберігаємо останні 15 подій
+    setActivityLog(prev => [{ text, time, type }, ...prev].slice(0, 15)); 
   };
 
   useEffect(() => {
@@ -126,7 +124,6 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // 🔥 ВИРАХОВУЄМО ДАТУ РЕЄСТРАЦІЇ З FIREBASE
         if (currentUser.metadata && currentUser.metadata.creationTime) {
           const date = new Date(currentUser.metadata.creationTime);
           const options = { year: 'numeric', month: 'long', day: 'numeric' };
@@ -171,7 +168,6 @@ function App() {
     setAlerts(prev => [...prev, newAlert]);
     setToast({ show: true, message: `${t.alertCreate} (${coinId})`, isAdd: true });
     setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
-    // 🔥 ЗАПИС В ЖУРНАЛ: Створення сповіщення
     addLogEvent(`${t.logAlertSet}: ${coinId} ${type === 'up' ? '▲' : '▼'} ${curSymbol}${targetPrice}`, 'green');
   };
 
@@ -289,10 +285,8 @@ function App() {
     if (isAdding) {
       setIsPulsing(true);
       setTimeout(() => setIsPulsing(false), 500);
-      // 🔥 ЗАПИС В ЖУРНАЛ: Додано в обране
       addLogEvent(`${t.logAddedFav}: ${coinId}`, 'green');
     } else {
-      // 🔥 ЗАПИС В ЖУРНАЛ: Видалено з обраного
       addLogEvent(`${t.logRemovedFav}: ${coinId}`, 'orange');
     }
 
@@ -511,7 +505,24 @@ function App() {
             {user ? (
               <>
                 <span className="user-name">{user.displayName || user.email.split('@')[0]}</span>
-                <div className="user-avatar">{user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</div>
+                {/* 🔥 ТУТ МИ ЗРОБИЛИ АВАТАРКУ ІДЕАЛЬНО КРУГЛОЮ */}
+                {user.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt="Avatar" 
+                    style={{ 
+                      width: '36px', height: '36px', 
+                      borderRadius: '50%', // Змінено з 10px на 50%
+                      border: '1px solid rgba(247, 147, 26, 0.5)', 
+                      objectFit: 'cover', 
+                      background: '#1e2329' 
+                    }} 
+                  />
+                ) : (
+                  <div className="user-avatar">
+                    {user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                  </div>
+                )}
               </>
             ) : (
               <span className="auth-link-text">
@@ -654,7 +665,6 @@ function App() {
             onLoginSuccess={() => {
               setToast({ show: true, message: t.loginMsg, isAdd: true });
               setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
-              // 🔥 ЗАПИС В ЖУРНАЛ: Вхід в акаунт
               addLogEvent(t.loginMsg, 'green');
             }}
           />
@@ -685,7 +695,6 @@ function App() {
               setTimezone(newTz);
               addLogEvent(t.logTzChanged, 'blue');
             }}
-            // 🔥 ПЕРЕДАЄМО ЛОГ І ДАТУ В КАБІНЕТ
             activityLog={activityLog}
             userJoinDate={userJoinDate}
           />
