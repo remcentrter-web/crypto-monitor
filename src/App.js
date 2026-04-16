@@ -164,7 +164,14 @@ function App() {
   }, [alerts]);
 
   const handleAddAlert = (coinId, targetPrice, type) => {
-    const newAlert = { id: Date.now(), coinId, targetPrice: parseFloat(targetPrice), type };
+    const newAlert = { 
+      id: Date.now(), 
+      coinId, 
+      targetPrice: parseFloat(targetPrice), 
+      type,
+      currency: currency, 
+      currencySymbol: curSymbol 
+    };
     setAlerts(prev => [...prev, newAlert]);
     setToast({ show: true, message: `${t.alertCreate} (${coinId})`, isAdd: true });
     setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 3000);
@@ -176,12 +183,17 @@ function App() {
   };
 
   useEffect(() => {
-    if (alerts.length === 0 || Object.keys(prices).length <= 1) return;
+    if (alerts.length === 0 || Object.keys(prices).length <= 1 || prices._currency !== currency) return;
 
     let alertsToKeep = [];
     let newlyTriggered = []; 
 
     alerts.forEach(alertItem => {
+      if (alertItem.currency && alertItem.currency !== currency) {
+        alertsToKeep.push(alertItem);
+        return;
+      }
+
       const coinData = prices[alertItem.coinId];
       if (!coinData) {
         alertsToKeep.push(alertItem);
@@ -191,10 +203,10 @@ function App() {
       const currentPrice = parseFloat(coinData.price);
       
       if (alertItem.type === 'up' && currentPrice >= alertItem.targetPrice) {
-        newlyTriggered.push({ ...alertItem, currentPrice });
+        newlyTriggered.push({ ...alertItem, currentPrice, currencySymbol: alertItem.currencySymbol || curSymbol });
       } 
       else if (alertItem.type === 'down' && currentPrice <= alertItem.targetPrice) {
-        newlyTriggered.push({ ...alertItem, currentPrice });
+        newlyTriggered.push({ ...alertItem, currentPrice, currencySymbol: alertItem.currencySymbol || curSymbol });
       } 
       else {
         alertsToKeep.push(alertItem); 
@@ -212,7 +224,7 @@ function App() {
       setActiveAlertsQueue(prevQueue => [...prevQueue, ...newlyTriggered]);
       setAlerts(alertsToKeep);
     }
-  }, [prices,alerts, language, timezone]);
+  }, [prices, alerts, language, timezone, currency, curSymbol]); 
 
   useEffect(() => {
    const fetchTop50 = async () => {
@@ -505,14 +517,13 @@ function App() {
             {user ? (
               <>
                 <span className="user-name">{user.displayName || user.email.split('@')[0]}</span>
-                {/* 🔥 ТУТ МИ ЗРОБИЛИ АВАТАРКУ ІДЕАЛЬНО КРУГЛОЮ */}
                 {user.photoURL ? (
                   <img 
                     src={user.photoURL} 
                     alt="Avatar" 
                     style={{ 
                       width: '36px', height: '36px', 
-                      borderRadius: '50%', // Змінено з 10px на 50%
+                      borderRadius: '50%', 
                       border: '1px solid rgba(247, 147, 26, 0.5)', 
                       objectFit: 'cover', 
                       background: '#1e2329' 
@@ -593,7 +604,8 @@ function App() {
               setFavorites={setFavorites} 
             />
           } />
-          <Route path="/alerts" element={<Alerts alerts={alerts} setAlerts={setAlerts} prices={prices} history={alertHistory} onEdit={handleEditAlert} currencySymbol={curSymbol} />} />
+          
+          <Route path="/alerts" element={<Alerts alerts={alerts} setAlerts={setAlerts} prices={prices} history={alertHistory} onEdit={handleEditAlert} currencySymbol={curSymbol} currentCurrency={currency} />} />
 
         </Routes>
 
@@ -631,11 +643,11 @@ function App() {
                     {t.alertTitle}
                   </h2>
                   <p style={{ fontSize: '1rem', color: '#aaa', marginBottom: '25px', lineHeight: '1.4' }}>
-                    {t.alertText1} <strong style={{ color: '#fff' }}>{currentAlert.coinId}</strong> {t.alertText2} <strong style={{ color: currentAlert.type === 'up' ? '#00c087' : '#ff4343' }}>{curSymbol}{currentAlert.targetPrice}</strong>!
+                    {t.alertText1} <strong style={{ color: '#fff' }}>{currentAlert.coinId}</strong> {t.alertText2} <strong style={{ color: currentAlert.type === 'up' ? '#00c087' : '#ff4343' }}>{currentAlert.currencySymbol || curSymbol}{currentAlert.targetPrice}</strong>!
                   </p>
                   <div style={{ background: '#12161c', padding: '15px', borderRadius: '15px', marginBottom: '25px', border: '1px solid #2b3139' }}>
                     <span style={{ color: '#8e9eaf', fontSize: '0.85rem' }}>{t.alertCurrent}</span><br/>
-                    <strong style={{ fontSize: '1.6rem', color: '#fff' }}>{curSymbol}{currentAlert.currentPrice}</strong>
+                    <strong style={{ fontSize: '1.6rem', color: '#fff' }}>{currentAlert.currencySymbol || curSymbol}{currentAlert.currentPrice}</strong>
                   </div>
 
                   <button 
