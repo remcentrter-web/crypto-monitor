@@ -415,29 +415,38 @@ function App() {
           </div>
 
           <div style={{ position: 'relative', margin: '0 auto' }}>
-            <input 
-              type="text" 
-              placeholder={t.searchBox}   
-              value={searchQuery}
-              onChange={(e) => {
-                const cleanValue = e.target.value.replace(/[0-9+-]/g, '');
-                setSearchQuery(cleanValue);
-              }}
-              onKeyDown={(e) => {
-                if (/[0-9+-]/.test(e.key)) {
-                  e.preventDefault();
-                }
-              }}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-              style={{ 
-                padding: '10px 15px', borderRadius: '20px', border: 'none', 
-                outline: 'none', width: isSearchFocused ? '350px' : '250px', 
-                background: '#2b3139', color: 'white', fontSize: '1rem', textAlign: 'center',
-                transition: 'width 0.3s ease, box-shadow 0.3s ease',
-                boxShadow: isSearchFocused ? '0 0 10px rgba(247, 147, 26, 0.3)' : 'none'
-              }}
-            />
+            
+            {/* 🔥 ОНОВЛЕНИЙ ПОШУК З ЛУПОЮ І ХРЕСТИКОМ */}
+            <div className={`search-container ${isSearchFocused ? 'focused' : ''}`}>
+              <svg className="search-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              
+              <input 
+                type="text" 
+                placeholder={t.searchBox}   
+                value={searchQuery}
+                onChange={(e) => {
+                  // Фільтруємо ВСЕ, крім букв і цифр (прибираємо + - = та інші символи)
+                  const cleanValue = e.target.value.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄґҐ0-9 ]/g, '');
+                  setSearchQuery(cleanValue);
+                }}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                className="search-input"
+              />
+
+              {searchQuery && (
+                <button 
+                  className="search-clear-btn" 
+                  onClick={() => setSearchQuery('')}
+                  title="Очистити пошук"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
             
             {(isSearchFocused || searchQuery.trim().length > 0 || searchCategory !== 'all') && (
               <div style={{

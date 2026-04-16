@@ -18,6 +18,7 @@
   
   background: linear-gradient(90deg, #f7931a 0%, #ffd700 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   
   filter: drop-shadow(0px 2px 8px rgba(247, 147, 26, 0.4));
@@ -86,4 +87,62 @@
   color: #ffaa42;
   text-shadow: 0 0 12px rgba(247, 147, 26, 0.7);
   transform: scale(1.05) translateY(-1px);
+}
+/* 🔥 СТИЛІ ДЛЯ ПОШУКУ З ІКОНКАМИ 🔥 */
+
+.search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #2b3139;
+  border-radius: 20px;
+  width: 250px;
+  transition: width 0.3s ease, box-shadow 0.3s ease;
+}
+
+.search-container.focused {
+  width: 350px;
+  box-shadow: 0 0 10px rgba(247, 147, 26, 0.3);
+}
+
+.search-icon {
+  position: absolute;
+  left: 15px;
+  color: #8e9eaf;
+  pointer-events: none; /* Щоб іконка не блокувала клік по інпуту */
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 35px 10px 40px; /* Відступи для лупи зліва і хрестика справа */
+  background: transparent;
+  border: none;
+  outline: none;
+  color: white;
+  font-size: 1rem;
+}
+
+/* Колір плейсхолдера */
+.search-input::placeholder {
+  color: #8e9eaf;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #8e9eaf;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.search-clear-btn:hover {
+  color: #ff4343; /* При наведенні хрестик стає червоним */
 }
