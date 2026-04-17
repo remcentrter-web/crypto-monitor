@@ -33,7 +33,6 @@ const appTranslations = {
     alertCurrent: "Поточна ринкова ціна:", alertGotIt: "Зрозуміло, дякую!",
     logAddedFav: "Додано в обране", logRemovedFav: "Видалено з обраного", logAlertSet: "Створено сповіщення",
     logLangChanged: "Змінено мову на", logCurChanged: "Змінено валюту на", logTzChanged: "Змінено часовий пояс",
-    // 🔥 ОНОВЛЕНИЙ ЛОЯЛЬНИЙ ТЕКСТ ЛІМІТУ
     favLimitMsg: "Щоб зберегти більше 5 монет, будь ласка, увійдіть або зареєструйтесь "
   },
   en: {
@@ -53,7 +52,6 @@ const appTranslations = {
     alertCurrent: "Current market price:", alertGotIt: "Got it, thanks!",
     logAddedFav: "Added to favorites", logRemovedFav: "Removed from favorites", logAlertSet: "Alert created",
     logLangChanged: "Language changed to", logCurChanged: "Currency changed to", logTzChanged: "Timezone changed",
-    // 🔥 ОНОВЛЕНИЙ ЛОЯЛЬНИЙ ТЕКСТ ЛІМІТУ
     favLimitMsg: "To save more than 5 coins, please log in or register 💛"
   }
 };
@@ -71,6 +69,10 @@ function App() {
 
   const [timezone, setTimezone] = useState(localStorage.getItem('app_tz') || 'Europe/Kyiv');
 
+  const [user, setUser] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showCabinetModal, setShowCabinetModal] = useState(false); 
+
   const [activityLog, setActivityLog] = useState(() => {
     const saved = localStorage.getItem('myActivityLog');
     return saved ? JSON.parse(saved) : [];
@@ -86,17 +88,12 @@ function App() {
     localStorage.setItem('myActivityLog', JSON.stringify(activityLog));
   }, [activityLog]);
 
+  // 🔥 ЛОКАЛЬНЕ ЗБЕРЕЖЕННЯ НАЛАШТУВАНЬ (БЕЗ ХМАРИ)
   useEffect(() => {
     localStorage.setItem('app_lang', language);
-  }, [language]);
-
-  useEffect(() => {
     localStorage.setItem('app_currency', currency);
-  }, [currency]);
-
-  useEffect(() => {
     localStorage.setItem('app_tz', timezone);
-  }, [timezone]);
+  }, [language, currency, timezone]);
 
   const [prices, setPrices] = useState({ _currency: currency });
   const [lastFetchTime, setLastFetchTime] = useState(null);
@@ -117,15 +114,25 @@ function App() {
   const [isSearchFocused, setIsSearchFocused] = useState(false); 
   const [searchCategory, setSearchCategory] = useState('all'); 
 
-  const [user, setUser] = useState(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showCabinetModal, setShowCabinetModal] = useState(false); 
+  // 🔥 НОВЕ: ЗАКРИТТЯ ПОШУКУ НА ESCAPE
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setSearchQuery('');
+        setSearchCategory('all');
+        setIsSearchFocused(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('myFavorites');
     return saved ? JSON.parse(saved) : [];
   });
 
+  // 🔥 ОНОВЛЕНИЙ БЛОК АВТОРИЗАЦІЇ (БЕЗ ПОМИЛОК ESLINT)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -133,7 +140,7 @@ function App() {
         if (currentUser.metadata && currentUser.metadata.creationTime) {
           const date = new Date(currentUser.metadata.creationTime);
           const options = { year: 'numeric', month: 'long', day: 'numeric' };
-          setUserJoinDate(date.toLocaleDateString(language === 'ua' ? 'uk-UA' : 'en-US', options));
+          setUserJoinDate(date.toLocaleDateString('uk-UA', options)); // Просто для відображення
         }
 
         try {
@@ -141,11 +148,28 @@ function App() {
           const docSnap = await getDoc(docRef);
           
           if (docSnap.exists()) {
-            setFavorites(docSnap.data().coins || []);
+            const data = docSnap.data();
+            setFavorites(data.coins || []);
+            
+            // Якщо в хмарі є налаштування — беремо їх
+            if (data.language) setLanguage(data.language);
+            if (data.currency) setCurrency(data.currency);
+            if (data.timezone) setTimezone(data.timezone);
+            
           } else {
+            // Для нових юзерів беремо те, що зараз в браузері
             const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
+            const startLang = localStorage.getItem('app_lang') || 'ua';
+            const startCur = localStorage.getItem('app_currency') || 'usd';
+            const startTz = localStorage.getItem('app_tz') || 'Europe/Kyiv';
+
             setFavorites(localFavs);
-            await setDoc(docRef, { coins: localFavs });
+            await setDoc(docRef, { 
+              coins: localFavs,
+              language: startLang,
+              currency: startCur,
+              timezone: startTz
+            });
           }
         } catch (err) {
           console.error("Помилка завантаження обраного:", err);
@@ -157,12 +181,18 @@ function App() {
       }
     });
     return () => unsubscribe();
-  }, [language]);
+  }, []); 
 
   const handleLogout = async () => {
     await signOut(auth);
+    
+    // Скидаємо все для гостя
+    setLanguage('ua');
+    setCurrency('usd');
+    setTimezone('Europe/Kyiv');
+
     setToast({ show: true, message: t.logoutMsg, isAdd: false });
-    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000); // 4 секунди
+    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000);
   };
 
   useEffect(() => {
@@ -201,7 +231,7 @@ function App() {
     };
     setAlerts(prev => [...prev, newAlert]);
     setToast({ show: true, message: `${t.alertCreate} (${coinId})`, isAdd: true });
-    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000); // 4 секунди
+    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000);
     addLogEvent(`${t.logAlertSet}: ${coinId} ${type === 'up' ? '▲' : '▼'} ${curSymbol}${targetPrice}`, 'green');
   };
 
@@ -319,7 +349,8 @@ function App() {
     
     if (isAdding && !user && favorites.length >= 5) {
       setToast({ show: true, message: t.favLimitMsg, isAdd: false });
-      setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000); // 4 секунди
+      setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000);
+      setSelectedCoin(null);
       setShowAuthModal(true); 
       return; 
     }
@@ -332,7 +363,7 @@ function App() {
 
     if (user) {
       try {
-        await setDoc(doc(db, 'user_favorites', user.uid), { coins: newFavorites });
+        await setDoc(doc(db, 'user_favorites', user.uid), { coins: newFavorites }, { merge: true });
       } catch (err) {
         console.error("Помилка збереження в хмару:", err);
       }
@@ -352,7 +383,7 @@ function App() {
       isAdd: isAdding
     });
 
-    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000); // 4 секунди
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
   };
 
   const renderCard = (id, name, isSmall = false) => {
@@ -653,8 +684,8 @@ function App() {
               prices={prices} 
               renderCard={renderCard} 
               setFavorites={setFavorites} 
-              user={user} /* 🔥 ТЕПЕР ОБРАНЕ ЗНАЄ, ЧИ Є АКАУНТ */
-              openAuth={() => setShowAuthModal(true)} /* 🔥 ПЕРЕДАЛИ ФУНКЦІЮ ВІДКРИТТЯ ВХОДУ */
+              user={user} 
+              openAuth={() => setShowAuthModal(true)} 
             />
           } />
           
@@ -750,20 +781,28 @@ function App() {
               handleLogout();
             }}
             currentLang={language}
-            setGlobalLang={(newLang) => {
+            
+            // 🔥 ОНОВЛЕНІ ФУНКЦІЇ: ЗБЕРІГАЮТЬ В ХМАРУ ПРИ КЛІКУ В КАБІНЕТІ
+            setGlobalLang={async (newLang) => {
               setLanguage(newLang);
               addLogEvent(`${t.logLangChanged} ${newLang.toUpperCase()}`, 'blue');
+              if (user) await setDoc(doc(db, 'user_favorites', user.uid), { language: newLang }, { merge: true });
             }}
+            
             currentCurrency={currency}
-            setGlobalCurrency={(newCur) => {
+            setGlobalCurrency={async (newCur) => {
               setCurrency(newCur);
               addLogEvent(`${t.logCurChanged} ${newCur.toUpperCase()}`, 'blue');
+              if (user) await setDoc(doc(db, 'user_favorites', user.uid), { currency: newCur }, { merge: true });
             }}
+            
             currentTimezone={timezone}
-            setGlobalTimezone={(newTz) => {
+            setGlobalTimezone={async (newTz) => {
               setTimezone(newTz);
               addLogEvent(t.logTzChanged, 'blue');
+              if (user) await setDoc(doc(db, 'user_favorites', user.uid), { timezone: newTz }, { merge: true });
             }}
+
             activityLog={activityLog}
             userJoinDate={userJoinDate}
           />
@@ -773,4 +812,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 
