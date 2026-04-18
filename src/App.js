@@ -34,7 +34,6 @@ const appTranslations = {
     logAddedFav: "Додано в обране", logRemovedFav: "Видалено з обраного", logAlertSet: "Створено сповіщення",
     logLangChanged: "Змінено мову на", logCurChanged: "Змінено валюту на", logTzChanged: "Змінено часовий пояс",
     favLimitMsg: "Щоб зберегти більше 5 монет, будь ласка, увійдіть або зареєструйтесь ",
-    // 🔥 НОВИЙ ПЕРЕКЛАД
     offlineMsg: "⚠️ Немає підключення до інтернету. Дані можуть бути неактуальними."
   },
   en: {
@@ -55,7 +54,6 @@ const appTranslations = {
     logAddedFav: "Added to favorites", logRemovedFav: "Removed from favorites", logAlertSet: "Alert created",
     logLangChanged: "Language changed to", logCurChanged: "Currency changed to", logTzChanged: "Timezone changed",
     favLimitMsg: "To save more than 5 coins, please log in or register 💛",
-    // 🔥 НОВИЙ ПЕРЕКЛАД
     offlineMsg: "⚠️ No internet connection. Data may be outdated."
   }
 };
@@ -77,7 +75,7 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCabinetModal, setShowCabinetModal] = useState(false); 
 
-  // 🔥 СТАН ОНЛАЙН/ОФЛАЙН
+  // СТАН ОНЛАЙН/ОФЛАЙН
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
@@ -230,6 +228,7 @@ function App() {
     return () => unsubscribe();
   }, []); 
 
+  // 🔥 1. ОНОВЛЕНИЙ handleLogout (Тепер повертає гостьові монети при виході)
   const handleLogout = async () => {
     await signOut(auth);
     
@@ -241,15 +240,15 @@ function App() {
     setAlertHistory([]);
     setActivityLog([]);
 
+    // 🔥 Витягуємо старі гостьові монети з пам'яті браузера
+    const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
+    setFavorites(localFavs);
+
     setToast({ show: true, message: t.logoutMsg, isAdd: false });
     setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000);
   };
 
-  useEffect(() => {
-    if (!user) {
-      localStorage.setItem('myFavorites', JSON.stringify(favorites));
-    }
-  }, [favorites, user]);
+  // 🔥 2. ВИДАЛЕНО БАГОВАНИЙ useEffect, ЯКИЙ ЗБЕРІГАВ ЧУЖІ МОНЕТИ ПРИ ВИХОДІ
 
   useEffect(() => {
     localStorage.setItem('myAlertHistory', JSON.stringify(alertHistory));
@@ -431,12 +430,16 @@ function App() {
 
     setFavorites(newFavorites);
 
+    // 🔥 3. ОНОВЛЕНО ЗБЕРЕЖЕННЯ МОНЕТ (Гостьові монети тепер безпечні)
     if (user && isOnline) {
       try {
         await setDoc(doc(db, 'user_favorites', user.uid), { coins: newFavorites }, { merge: true });
       } catch (err) {
         console.error("Помилка збереження в хмару:", err);
       }
+    } else if (!user) {
+      // Записуємо локально тільки якщо користувач ГІСТЬ
+      localStorage.setItem('myFavorites', JSON.stringify(newFavorites));
     }
 
     if (isAdding) {
@@ -538,7 +541,7 @@ function App() {
   return (
     <Router>
       <div className="App">
-        {/* 🔥 ВІДЖЕТ ВІДСУТНОСТІ ІНТЕРНЕТУ */}
+        {/* ВІДЖЕТ ВІДСУТНОСТІ ІНТЕРНЕТУ */}
         {!isOnline && (
           <div style={{
             position: 'fixed', top: '10px', left: '50%', transform: 'translateX(-50%)',

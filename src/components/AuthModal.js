@@ -6,7 +6,9 @@ import {
   updateProfile, 
   GoogleAuthProvider, 
   signInWithPopup,
-  sendPasswordResetEmail 
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  signOut 
 } from 'firebase/auth';
 import './AuthModal.css';
 
@@ -17,14 +19,27 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
-  
-  // 🔥 Стан для відображення пароля
   const [showPassword, setShowPassword] = useState(false);
+
+  // ФУНКЦІЯ ПЕРЕВІРКИ EMAIL (Regex)
+  const validateEmail = (email) => {
+    return String(email)
+      .toLowerCase()
+      .match(/^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
+  };
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      
+      // ЖОРСТКЕ БЛОКУВАННЯ: Перевіряємо Google пошту
+      if (!result.user.emailVerified) {
+        await signOut(auth); // Примусово викидаємо
+        setError('Ваш Google-акаунт не має підтвердженої пошти. Використовуйте інший метод.');
+        return;
+      }
+
       if (onLoginSuccess) onLoginSuccess();
       onClose();
     } catch (err) {
@@ -40,7 +55,7 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
     }
     try {
       await sendPasswordResetEmail(auth, email);
-      setInfoMessage('Інструкцію відправлено! Якщо листа немає, перевірте папку "Спам"');
+      setInfoMessage('Інструкцію відправлено! Перевірте пошту');
       setError('');
     } catch (err) {
       setError('Помилка: перевірте правильність Email');
@@ -52,20 +67,63 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
     setError('');
     setInfoMessage('');
 
+    // ПЕРЕВІРКА ПЕРЕД ВІДПРАВКОЮ
+    if (!validateEmail(email)) {
+        setError('Будь ласка, введіть коректну пошту (наприклад: name@gmail.com)');
+        return;
+    }
+
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        
+        // 🔥 ЖОРСТКЕ БЛОКУВАННЯ ТА ПОРЯТУНОК СТАРИХ АКАУНТІВ
+        if (!userCredential.user.emailVerified) {
+          // Якщо пошта не підтверджена, ми надсилаємо лист прямо зараз (рятує старі акаунти)
+          await sendEmailVerification(userCredential.user);
+          // І одразу викидаємо користувача з системи
+          await signOut(auth); 
+          
+          setError('⚠️ Ваш Email ще не підтверджено! Ми щойно надіслали новий лист з посиланням — перевірте пошту.');
+          return; // Зупиняємо виконання
+        }
+
+        // Якщо все ок і пошта підтверджена — пускаємо на сайт
+        if (onLoginSuccess) onLoginSuccess();
+        onClose();
+        
       } else {
         if (name.length < 2) {
           setError("Ім'я занадто коротке");
           return;
         }
+        
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: name });
+
+        // НАДСИЛАЄМО ЛИСТ ПІДТВЕРДЖЕННЯ ПРИ РЕЄСТРАЦІЇ
+        await sendEmailVerification(userCredential.user);
+        
+        // ПРИМУСОВИЙ ВИХІД ПІСЛЯ РЕЄСТРАЦІЇ
+        await signOut(auth); // Юзер не вважається залогіненим, поки не підтвердить пошту
+
+        setInfoMessage('Реєстрація майже закінчена. Залишився один крок: підтвердіть її в емейлі. Якщо листа немає, обов’язково перевірте папку спам.');
+        
+        // Очищаємо поля
+        setEmail('');
+        setPassword('');
+        setName('');
+        
+        // Перемикаємо вікно на "Вхід", щоб користувач міг увійти після підтвердження
+        setTimeout(() => {
+            setIsLogin(true);
+            setInfoMessage('Тепер ви можете увійти, використовуючи підтверджену пошту.');
+        }, 6000);
+        return; 
       }
-      if (onLoginSuccess) onLoginSuccess();
-      onClose();
+      
     } catch (err) {
+      console.log(err.code);
       switch (err.code) {
         case 'auth/email-already-in-use':
           setError('Цей акаунт вже існує. Увійдіть.');
@@ -75,6 +133,9 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
           break;
         case 'auth/invalid-credential':
           setError('Неправильна пошта або пароль');
+          break;
+        case 'auth/too-many-requests':
+          setError('Забагато спроб. Спробуйте пізніше.');
           break;
         default:
           setError('Сталася помилка. Перевірте дані.');
@@ -89,16 +150,8 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
         
         <h2>{isLogin ? 'Вхід в систему' : 'Реєстрація'}</h2>
         
-        {/* 🔥 НОВИЙ ТЕКСТ ПІД ЧАС РЕЄСТРАЦІЇ */}
         {!isLogin && (
-          <p style={{ 
-            color: '#8e9eaf', 
-            fontSize: '0.9rem', 
-            textAlign: 'center', 
-            marginTop: '-10px', 
-            marginBottom: '20px', 
-            lineHeight: '1.4' 
-          }}>
+          <p style={{ color: '#8e9eaf', fontSize: '0.9rem', textAlign: 'center', marginTop: '-10px', marginBottom: '20px', lineHeight: '1.4' }}>
             Створіть акаунт, щоб отримати доступ до професійних графіків, цінових сповіщень та хмарної синхронізації.
           </p>
         )}
@@ -125,7 +178,7 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
             type="email" 
             placeholder="Email" 
             value={email} 
-            onChange={(e) => setEmail(e.target.value.replace(/[^a-zA-Z0-9@._]/g, ''))} 
+            onChange={(e) => setEmail(e.target.value)} 
             required 
           />
           
@@ -157,7 +210,7 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
           </div>
           
           {error && <p className="auth-error">{error}</p>}
-          {infoMessage && <p className="auth-info">{infoMessage}</p>}
+          {infoMessage && <p className="auth-info" style={{ color: '#f7931a', fontSize: '0.9rem', marginBottom: '15px' }}>{infoMessage}</p>}
 
           <button type="submit" className="auth-submit-btn">
             {isLogin ? 'Увійти' : 'Зареєструватися'}
