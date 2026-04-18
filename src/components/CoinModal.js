@@ -31,7 +31,10 @@ const translations = {
     general: "Загальний:", localTrend: "Локальний тренд:", time: "Час:",
     proLockTitle: "Доступ обмежено",
     proLockMsg: "Професійні графіки TradingView доступні лише для зареєстрованих користувачів. Будь ласка, увійдіть в акаунт або створіть новий.",
-    btnAuth: "Увійти / Зареєструватись" // 🔥 ЗМІНЕНО ТЕКСТ КНОПКИ
+    btnAuth: "Увійти / Зареєструватись",
+    // 🔥 НОВІ ПЕРЕКЛАДИ ДЛЯ БЛОКУ СПОВІЩЕНЬ
+    alertLockMsg: "Сповіщення доступні після реєстрації",
+    alertLockDesc: "Отримуйте пуш-повідомлення, коли ціна досягне вашої цілі."
   },
   en: {
     details: "DETAILS", proChart: "📊 Pro Chart", live: "⚡ LIVE (24H)",
@@ -44,7 +47,10 @@ const translations = {
     general: "Overall:", localTrend: "Local Trend:", time: "Time:",
     proLockTitle: "Access Restricted",
     proLockMsg: "Professional TradingView charts are only available to registered users. Please log in or sign up.",
-    btnAuth: "Login / Register" // 🔥 ЗМІНЕНО ТЕКСТ КНОПКИ
+    btnAuth: "Login / Register",
+    // 🔥 НОВІ ПЕРЕКЛАДИ ДЛЯ БЛОКУ СПОВІЩЕНЬ
+    alertLockMsg: "Alerts unlock after registration",
+    alertLockDesc: "Get push notifications when the price hits your target."
   }
 };
 
@@ -80,7 +86,6 @@ const crosshairPlugin = {
   }
 };
 
-// 🔥 ДОДАНО openAuth В ПРОПСИ
 const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, handleAddAlert, currencySymbol = '$', currencyCode = 'usd', user, openAuth }) => {
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
   useEffect(() => {
@@ -455,53 +460,82 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
               </div>
             </div>
 
-            <div className="calculator-section" style={{ margin: 0, border: '1px solid #2b3139', background: '#15191e' }}>
-              <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>{t.alertTitle}</h3>
-              <div className="calc-input-group">
-                <input 
-                  type="number" 
-                  placeholder={`${t.alertPlaceholder} ${currencySymbol}${(currentPrice * 1.05).toFixed(currentPrice < 1 ? 4 : 0)}...`}
-                  value={alertPrice}
-                  min="0"
-                  onChange={(e) => setAlertPrice(e.target.value)}
-                />
-                <span className="currency-label">{currencyCode.toUpperCase()}</span>
-              </div>
+            {/* 🔥 ОНОВЛЕНИЙ БЛОК СПОВІЩЕНЬ З ПЕРЕВІРКОЮ НА USER */}
+            <div className="calculator-section" style={{ margin: 0, border: '1px solid #2b3139', background: '#15191e', position: 'relative', overflow: 'hidden' }}>
               
-              <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                <button 
-                  onClick={() => {
-                    if (alertPrice && alertPrice > 0) {
-                      if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), alertPrice, 'up');
-                      setAlertPrice(''); 
-                    }
-                  }}
-                  style={{ flex: 1, padding: '10px', background: 'rgba(0, 192, 135, 0.1)', color: '#00c087', border: '1px solid #00c087', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
-                  onMouseEnter={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.2)'}
-                  onMouseLeave={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.1)'}
-                >
-                  {t.btnUp}
-                </button>
-                <button 
-                  onClick={() => {
-                    if (alertPrice && alertPrice > 0) {
-                      if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), alertPrice, 'down');
-                      setAlertPrice(''); 
-                    }
-                  }}
-                  style={{ flex: 1, padding: '10px', background: 'rgba(255, 67, 67, 0.1)', color: '#ff4343', border: '1px solid #ff4343', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
-                  onMouseEnter={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.2)'}
-                  onMouseLeave={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.1)'}
-                >
-                  {t.btnDown}
-                </button>
+              {/* Якщо користувач не залогінений - показуємо "замок" поверх блоку */}
+              {!user && (
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                  background: 'rgba(21, 25, 30, 0.85)', backdropFilter: 'blur(4px)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 10, padding: '20px', textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '5px' }}>🔒</div>
+                  <strong style={{ color: '#fff', fontSize: '1.1rem', marginBottom: '5px' }}>{t.alertLockMsg}</strong>
+                  <p style={{ color: '#8e9eaf', fontSize: '0.8rem', marginBottom: '15px' }}>{t.alertLockDesc}</p>
+                  <button 
+                    onClick={() => {
+                      if (onClose) onClose();
+                      if (openAuth) openAuth();
+                    }}
+                    style={{ background: 'transparent', color: '#f7931a', border: '1px solid #f7931a', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                    onMouseEnter={(e) => { e.target.style.background = '#f7931a'; e.target.style.color = '#12161c'; }}
+                    onMouseLeave={(e) => { e.target.style.background = 'transparent'; e.target.style.color = '#f7931a'; }}
+                  >
+                    {t.btnAuth}
+                  </button>
+                </div>
+              )}
+
+              {/* Сам контент блоку сповіщень (напівпрозорий, якщо гість) */}
+              <div style={{ opacity: user ? 1 : 0.3, pointerEvents: user ? 'auto' : 'none' }}>
+                <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>{t.alertTitle}</h3>
+                <div className="calc-input-group">
+                  <input 
+                    type="number" 
+                    placeholder={`${t.alertPlaceholder} ${currencySymbol}${(currentPrice * 1.05).toFixed(currentPrice < 1 ? 4 : 0)}...`}
+                    value={alertPrice}
+                    min="0"
+                    onChange={(e) => setAlertPrice(e.target.value)}
+                  />
+                  <span className="currency-label">{currencyCode.toUpperCase()}</span>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                  <button 
+                    onClick={() => {
+                      if (alertPrice && alertPrice > 0) {
+                        if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), alertPrice, 'up');
+                        setAlertPrice(''); 
+                      }
+                    }}
+                    style={{ flex: 1, padding: '10px', background: 'rgba(0, 192, 135, 0.1)', color: '#00c087', border: '1px solid #00c087', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.2)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.1)'}
+                  >
+                    {t.btnUp}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (alertPrice && alertPrice > 0) {
+                        if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), alertPrice, 'down');
+                        setAlertPrice(''); 
+                      }
+                    }}
+                    style={{ flex: 1, padding: '10px', background: 'rgba(255, 67, 67, 0.1)', color: '#ff4343', border: '1px solid #ff4343', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.2)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.1)'}
+                  >
+                    {t.btnDown}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 🔥 ОНОВЛЕНА МОДАЛКА З ПОПЕРЕДЖЕННЯМ ДЛЯ НЕАВТОРИЗОВАНИХ */}
       {showAuthWarning && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -509,14 +543,13 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000
         }}>
           <div style={{
-            position: 'relative', // Додано для правильного розміщення хрестика
+            position: 'relative', 
             background: '#1e2329', padding: '35px', borderRadius: '24px',
             width: '90%', maxWidth: '380px', border: '1px solid #f7931a', textAlign: 'center',
             boxShadow: '0 10px 40px rgba(247, 147, 26, 0.2)',
             animation: 'modalOpenAnim 0.25s ease-out forwards'
           }}>
             
-            {/* 🔥 КНОПКА ЗАКРИТТЯ (ХРЕСТИК) */}
             <button 
               onClick={() => setShowAuthWarning(false)}
               style={{
@@ -535,12 +568,11 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
               {t.proLockMsg}
             </p>
             
-            {/* 🔥 ОНОВЛЕНА КНОПКА АВТОРИЗАЦІЇ */}
             <button 
               onClick={() => {
                 setShowAuthWarning(false);
                 if (onClose) onClose();
-                if (openAuth) openAuth(); // Викликаємо відкриття вікна входу з App.js
+                if (openAuth) openAuth(); 
               }} 
               style={{ 
                 width: '100%', padding: '14px', background: '#f7931a', border: 'none', 
@@ -556,7 +588,6 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
         </div>
       )}
 
-      {/* САМ ГРАФІК TRADINGVIEW */}
       {showProChart && user && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,

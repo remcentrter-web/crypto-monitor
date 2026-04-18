@@ -89,6 +89,20 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
         
         <h2>{isLogin ? 'Вхід в систему' : 'Реєстрація'}</h2>
         
+        {/* 🔥 НОВИЙ ТЕКСТ ПІД ЧАС РЕЄСТРАЦІЇ */}
+        {!isLogin && (
+          <p style={{ 
+            color: '#8e9eaf', 
+            fontSize: '0.9rem', 
+            textAlign: 'center', 
+            marginTop: '-10px', 
+            marginBottom: '20px', 
+            lineHeight: '1.4' 
+          }}>
+            Створіть акаунт, щоб отримати доступ до професійних графіків, цінових сповіщень та хмарної синхронізації.
+          </p>
+        )}
+        
         <button type="button" className="google-btn" onClick={handleGoogleLogin}>
           <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" style={{ width: '24px', height: '24px' }} />
           Продовжити з Google
@@ -115,7 +129,6 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
             required 
           />
           
-          {/* 🔥 Обгортка для пароля з оком */}
           <div className="password-input-container">
             <input 
               type={showPassword ? "text" : "password"} 

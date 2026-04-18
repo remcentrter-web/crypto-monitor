@@ -24,7 +24,7 @@ const appTranslations = {
     loginBtn: "Увійти / Зареєструватись", logoutMsg: "Ви вийшли з акаунта", loginMsg: "Успішний вхід",
     titleTop3: "Топ-3 криптовалюти на сьогодні",
     lastUpdate: "Останнє оновлення:",
-    titlePop: "Популярні блокчейн-проекти 2026 року",
+    titlePop: "Popular Blockchain Projects 2026",
     titleAll: "Весь ринок",
     loadMore: "Розгорнути список", coinsCount: "монет",
     alertCreate: "Сповіщення створено!",
@@ -79,16 +79,25 @@ function App() {
   });
   const [userJoinDate, setUserJoinDate] = useState("");
 
+  // 🔥 ОНОВЛЕНО: Тепер зберігаємо в хмару ПРЯМО ТУТ, без стану перегонів
   const addLogEvent = (text, type = 'blue') => {
     const time = new Date().toLocaleTimeString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
-    setActivityLog(prev => [{ text, time, type }, ...prev].slice(0, 15)); 
+    setActivityLog(prev => {
+      const newLog = [{ text, time, type }, ...prev].slice(0, 15);
+      
+      // Миттєво відправляємо свіжу подію в Firebase
+      if (user) {
+        setDoc(doc(db, 'user_favorites', user.uid), { activityLog: newLog }, { merge: true }).catch(err => console.error(err));
+      }
+      return newLog;
+    }); 
   };
 
+  // 🔥 Залишаємо ТІЛЬКИ локальне збереження (авто-збереження в хмару видалено)
   useEffect(() => {
     localStorage.setItem('myActivityLog', JSON.stringify(activityLog));
   }, [activityLog]);
 
-  // 🔥 ЛОКАЛЬНЕ ЗБЕРЕЖЕННЯ НАЛАШТУВАНЬ (БЕЗ ХМАРИ)
   useEffect(() => {
     localStorage.setItem('app_lang', language);
     localStorage.setItem('app_currency', currency);
@@ -114,7 +123,6 @@ function App() {
   const [isSearchFocused, setIsSearchFocused] = useState(false); 
   const [searchCategory, setSearchCategory] = useState('all'); 
 
-  // 🔥 НОВЕ: ЗАКРИТТЯ ПОШУКУ НА ESCAPE
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -132,75 +140,6 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // 🔥 ОНОВЛЕНИЙ БЛОК АВТОРИЗАЦІЇ (БЕЗ ПОМИЛОК ESLINT)
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        if (currentUser.metadata && currentUser.metadata.creationTime) {
-          const date = new Date(currentUser.metadata.creationTime);
-          const options = { year: 'numeric', month: 'long', day: 'numeric' };
-          setUserJoinDate(date.toLocaleDateString('uk-UA', options)); // Просто для відображення
-        }
-
-        try {
-          const docRef = doc(db, 'user_favorites', currentUser.uid);
-          const docSnap = await getDoc(docRef);
-          
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setFavorites(data.coins || []);
-            
-            // Якщо в хмарі є налаштування — беремо їх
-            if (data.language) setLanguage(data.language);
-            if (data.currency) setCurrency(data.currency);
-            if (data.timezone) setTimezone(data.timezone);
-            
-          } else {
-            // Для нових юзерів беремо те, що зараз в браузері
-            const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
-            const startLang = localStorage.getItem('app_lang') || 'ua';
-            const startCur = localStorage.getItem('app_currency') || 'usd';
-            const startTz = localStorage.getItem('app_tz') || 'Europe/Kyiv';
-
-            setFavorites(localFavs);
-            await setDoc(docRef, { 
-              coins: localFavs,
-              language: startLang,
-              currency: startCur,
-              timezone: startTz
-            });
-          }
-        } catch (err) {
-          console.error("Помилка завантаження обраного:", err);
-        }
-
-      } else {
-        const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
-        setFavorites(localFavs);
-      }
-    });
-    return () => unsubscribe();
-  }, []); 
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    
-    // Скидаємо все для гостя
-    setLanguage('ua');
-    setCurrency('usd');
-    setTimezone('Europe/Kyiv');
-
-    setToast({ show: true, message: t.logoutMsg, isAdd: false });
-    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000);
-  };
-
-  useEffect(() => {
-    if (!user) {
-      localStorage.setItem('myFavorites', JSON.stringify(favorites));
-    }
-  }, [favorites, user]);
-
   const [alerts, setAlerts] = useState(() => {
     const saved = localStorage.getItem('myAlerts');
     return saved ? JSON.parse(saved) : [];
@@ -212,6 +151,95 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // 🔥 ОБ'ЄДНАНА ЛОГІКА АВТОРИЗАЦІЇ ТА СИНХРОНІЗАЦІЇ
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        if (currentUser.metadata && currentUser.metadata.creationTime) {
+          const date = new Date(currentUser.metadata.creationTime);
+          const options = { year: 'numeric', month: 'long', day: 'numeric' };
+          setUserJoinDate(date.toLocaleDateString('uk-UA', options)); 
+        }
+
+        try {
+          const docRef = doc(db, 'user_favorites', currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setFavorites(data.coins || []);
+            
+            if (data.language) setLanguage(data.language);
+            if (data.currency) setCurrency(data.currency);
+            if (data.timezone) setTimezone(data.timezone);
+
+            // 🔥 ЗАВАНТАЖУЄМО СПОВІЩЕННЯ ТА ЖУРНАЛ ПОДІЙ З ХМАРИ
+            setAlerts(data.alerts || []);
+            setAlertHistory(data.alertHistory || []);
+            setActivityLog(data.activityLog || []);
+            
+          } else {
+            const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
+            const startLang = localStorage.getItem('app_lang') || 'ua';
+            const startCur = localStorage.getItem('app_currency') || 'usd';
+            const startTz = localStorage.getItem('app_tz') || 'Europe/Kyiv';
+
+            setFavorites(localFavs);
+            // 🔥 ДЛЯ НОВОГО АКАУНТУ ВСЕ ПОРОЖНЄ
+            setAlerts([]);
+            setAlertHistory([]);
+            setActivityLog([]);
+
+            await setDoc(docRef, { 
+              coins: localFavs,
+              language: startLang,
+              currency: startCur,
+              timezone: startTz,
+              alerts: [],
+              alertHistory: [],
+              activityLog: []
+            });
+          }
+        } catch (err) {
+          console.error("Помилка завантаження даних:", err);
+        }
+
+      } else {
+        // 🔥 ЯКЩО ГОСТ — ОЧИЩАЄМО СПОВІЩЕННЯ ТА ІСТОРІЮ
+        const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
+        setFavorites(localFavs);
+        setAlerts([]);
+        setAlertHistory([]);
+        setActivityLog([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []); 
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    
+    setLanguage('ua');
+    setCurrency('usd');
+    setTimezone('Europe/Kyiv');
+    
+    // 🔥 ПРИМУСОВЕ ОЧИЩЕННЯ ПРИ ВИХОДІ
+    setAlerts([]);
+    setAlertHistory([]);
+    setActivityLog([]);
+
+    setToast({ show: true, message: t.logoutMsg, isAdd: false });
+    setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000);
+  };
+
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem('myFavorites', JSON.stringify(favorites));
+    }
+  }, [favorites, user]);
+
+  // 🔥 ЛОКАЛЬНЕ ЗБЕРЕЖЕННЯ (БЕЗ АВТОМАТИЧНОГО ЗАВАНТАЖЕННЯ В ХМАРУ)
   useEffect(() => {
     localStorage.setItem('myAlertHistory', JSON.stringify(alertHistory));
   }, [alertHistory]);
@@ -220,6 +248,7 @@ function App() {
     localStorage.setItem('myAlerts', JSON.stringify(alerts));
   }, [alerts]);
 
+  // 🔥 ФУНКЦІЇ КЕРУВАННЯ СПОВІЩЕННЯМИ (ЗБЕРІГАЮТЬ В ХМАРУ ЛИШЕ ПРИ КЛІКУ)
   const handleAddAlert = (coinId, targetPrice, type) => {
     const newAlert = { 
       id: Date.now(), 
@@ -229,14 +258,35 @@ function App() {
       currency: currency, 
       currencySymbol: curSymbol 
     };
-    setAlerts(prev => [...prev, newAlert]);
+    
+    const updatedAlerts = [...alerts, newAlert];
+    setAlerts(updatedAlerts);
+    
+    if (user) {
+      setDoc(doc(db, 'user_favorites', user.uid), { alerts: updatedAlerts }, { merge: true }).catch(e => console.error(e));
+    }
+
     setToast({ show: true, message: `${t.alertCreate} (${coinId})`, isAdd: true });
     setTimeout(() => setToast({ show: false, message: '', isAdd: true }), 4000);
     addLogEvent(`${t.logAlertSet}: ${coinId} ${type === 'up' ? '▲' : '▼'} ${curSymbol}${targetPrice}`, 'green');
   };
 
+  const handleRemoveAlert = (id) => {
+    const updatedAlerts = alerts.filter(a => a.id !== id);
+    setAlerts(updatedAlerts);
+    
+    if (user) {
+      setDoc(doc(db, 'user_favorites', user.uid), { alerts: updatedAlerts }, { merge: true }).catch(e => console.error(e));
+    }
+  };
+
   const handleEditAlert = (id, newPrice) => {
-    setAlerts(prev => prev.map(a => a.id === id ? { ...a, targetPrice: parseFloat(newPrice) } : a));
+    const updatedAlerts = alerts.map(a => a.id === id ? { ...a, targetPrice: parseFloat(newPrice) } : a);
+    setAlerts(updatedAlerts);
+    
+    if (user) {
+      setDoc(doc(db, 'user_favorites', user.uid), { alerts: updatedAlerts }, { merge: true }).catch(e => console.error(e));
+    }
   };
 
   useEffect(() => {
@@ -270,18 +320,27 @@ function App() {
       }
     });
 
-  if (newlyTriggered.length > 0) {
+    if (newlyTriggered.length > 0) {
       const triggeredWithTime = newlyTriggered.map(item => ({
         ...item,
         time: new Date().toLocaleTimeString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone }),
         date: new Date().toLocaleDateString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone })
       }));
       
-      setAlertHistory(prev => [...triggeredWithTime, ...prev].slice(0, 20));
+      const newHistory = [...triggeredWithTime, ...alertHistory].slice(0, 20);
+      setAlertHistory(newHistory);
       setActiveAlertsQueue(prevQueue => [...prevQueue, ...newlyTriggered]);
       setAlerts(alertsToKeep);
+
+      // 🔥 ЯКЩО СПРАЦЮВАЛО СПОВІЩЕННЯ - ОНОВЛЮЄМО ХМАРУ
+      if (user) {
+        setDoc(doc(db, 'user_favorites', user.uid), { 
+          alerts: alertsToKeep,
+          alertHistory: newHistory
+        }, { merge: true }).catch(e => console.error(e));
+      }
     }
-  }, [prices, alerts, language, timezone, currency, curSymbol]); 
+  }, [prices, alerts, alertHistory, language, timezone, currency, curSymbol, user]); 
 
   useEffect(() => {
    const fetchTop50 = async () => {
@@ -477,7 +536,7 @@ function App() {
             <Link to="/favorites" className={`nav-link-btn ${isPulsing ? 'pulse-nav' : ''}`}> {t.navFav}</Link>
             <Link to="/alerts" className="nav-link-btn" style={{ position: 'relative' }}>
               {t.navAlerts}
-              {alerts.length > 0 && (
+              {user && alerts.length > 0 && (
                 <span style={{ 
                   position: 'absolute', top: '-8px', right: '-12px', background: '#ff4343', color: 'white', 
                   fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold',
@@ -689,7 +748,16 @@ function App() {
             />
           } />
           
-          <Route path="/alerts" element={<Alerts alerts={alerts} setAlerts={setAlerts} prices={prices} history={alertHistory} onEdit={handleEditAlert} currencySymbol={curSymbol} currentCurrency={currency} />} />
+          <Route path="/alerts" element={
+            <Alerts 
+              alerts={alerts} setAlerts={setAlerts} prices={prices} 
+              history={alertHistory} onEdit={handleEditAlert} 
+              onRemove={handleRemoveAlert}
+              currencySymbol={curSymbol} currentCurrency={currency} 
+              user={user} 
+              openAuth={() => setShowAuthModal(true)} 
+            />
+          } />
 
         </Routes>
 
@@ -782,7 +850,6 @@ function App() {
             }}
             currentLang={language}
             
-            // 🔥 ОНОВЛЕНІ ФУНКЦІЇ: ЗБЕРІГАЮТЬ В ХМАРУ ПРИ КЛІКУ В КАБІНЕТІ
             setGlobalLang={async (newLang) => {
               setLanguage(newLang);
               addLogEvent(`${t.logLangChanged} ${newLang.toUpperCase()}`, 'blue');
@@ -812,4 +879,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;
