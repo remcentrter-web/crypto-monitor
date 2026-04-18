@@ -24,7 +24,7 @@ const appTranslations = {
     loginBtn: "Увійти / Зареєструватись", logoutMsg: "Ви вийшли з акаунта", loginMsg: "Успішний вхід",
     titleTop3: "Топ-3 криптовалюти на сьогодні",
     lastUpdate: "Останнє оновлення:",
-    titlePop: "Popular Blockchain Projects 2026",
+    titlePop: "Популярні блокчейн-проекти 2026 року",
     titleAll: "Весь ринок",
     loadMore: "Розгорнути список", coinsCount: "монет",
     alertCreate: "Сповіщення створено!",
@@ -33,7 +33,9 @@ const appTranslations = {
     alertCurrent: "Поточна ринкова ціна:", alertGotIt: "Зрозуміло, дякую!",
     logAddedFav: "Додано в обране", logRemovedFav: "Видалено з обраного", logAlertSet: "Створено сповіщення",
     logLangChanged: "Змінено мову на", logCurChanged: "Змінено валюту на", logTzChanged: "Змінено часовий пояс",
-    favLimitMsg: "Щоб зберегти більше 5 монет, будь ласка, увійдіть або зареєструйтесь "
+    favLimitMsg: "Щоб зберегти більше 5 монет, будь ласка, увійдіть або зареєструйтесь ",
+    // 🔥 НОВИЙ ПЕРЕКЛАД
+    offlineMsg: "⚠️ Немає підключення до інтернету. Дані можуть бути неактуальними."
   },
   en: {
     navHome: "Home", navMarket: "Market", navFav: "Favorites", navAlerts: "Alerts",
@@ -52,7 +54,9 @@ const appTranslations = {
     alertCurrent: "Current market price:", alertGotIt: "Got it, thanks!",
     logAddedFav: "Added to favorites", logRemovedFav: "Removed from favorites", logAlertSet: "Alert created",
     logLangChanged: "Language changed to", logCurChanged: "Currency changed to", logTzChanged: "Timezone changed",
-    favLimitMsg: "To save more than 5 coins, please log in or register 💛"
+    favLimitMsg: "To save more than 5 coins, please log in or register 💛",
+    // 🔥 НОВИЙ ПЕРЕКЛАД
+    offlineMsg: "⚠️ No internet connection. Data may be outdated."
   }
 };
 
@@ -73,27 +77,40 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCabinetModal, setShowCabinetModal] = useState(false); 
 
+  // 🔥 СТАН ОНЛАЙН/ОФЛАЙН
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const [activityLog, setActivityLog] = useState(() => {
     const saved = localStorage.getItem('myActivityLog');
     return saved ? JSON.parse(saved) : [];
   });
   const [userJoinDate, setUserJoinDate] = useState("");
 
-  // 🔥 ОНОВЛЕНО: Тепер зберігаємо в хмару ПРЯМО ТУТ, без стану перегонів
   const addLogEvent = (text, type = 'blue') => {
     const time = new Date().toLocaleTimeString(language === 'ua' ? 'uk-UA' : 'en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' });
     setActivityLog(prev => {
       const newLog = [{ text, time, type }, ...prev].slice(0, 15);
       
-      // Миттєво відправляємо свіжу подію в Firebase
-      if (user) {
+      if (user && isOnline) { // Зберігаємо в хмару тільки якщо є інет
         setDoc(doc(db, 'user_favorites', user.uid), { activityLog: newLog }, { merge: true }).catch(err => console.error(err));
       }
       return newLog;
     }); 
   };
 
-  // 🔥 Залишаємо ТІЛЬКИ локальне збереження (авто-збереження в хмару видалено)
   useEffect(() => {
     localStorage.setItem('myActivityLog', JSON.stringify(activityLog));
   }, [activityLog]);
@@ -151,7 +168,6 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // 🔥 ОБ'ЄДНАНА ЛОГІКА АВТОРИЗАЦІЇ ТА СИНХРОНІЗАЦІЇ
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -174,7 +190,6 @@ function App() {
             if (data.currency) setCurrency(data.currency);
             if (data.timezone) setTimezone(data.timezone);
 
-            // 🔥 ЗАВАНТАЖУЄМО СПОВІЩЕННЯ ТА ЖУРНАЛ ПОДІЙ З ХМАРИ
             setAlerts(data.alerts || []);
             setAlertHistory(data.alertHistory || []);
             setActivityLog(data.activityLog || []);
@@ -186,7 +201,6 @@ function App() {
             const startTz = localStorage.getItem('app_tz') || 'Europe/Kyiv';
 
             setFavorites(localFavs);
-            // 🔥 ДЛЯ НОВОГО АКАУНТУ ВСЕ ПОРОЖНЄ
             setAlerts([]);
             setAlertHistory([]);
             setActivityLog([]);
@@ -206,7 +220,6 @@ function App() {
         }
 
       } else {
-        // 🔥 ЯКЩО ГОСТ — ОЧИЩАЄМО СПОВІЩЕННЯ ТА ІСТОРІЮ
         const localFavs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
         setFavorites(localFavs);
         setAlerts([]);
@@ -224,7 +237,6 @@ function App() {
     setCurrency('usd');
     setTimezone('Europe/Kyiv');
     
-    // 🔥 ПРИМУСОВЕ ОЧИЩЕННЯ ПРИ ВИХОДІ
     setAlerts([]);
     setAlertHistory([]);
     setActivityLog([]);
@@ -239,7 +251,6 @@ function App() {
     }
   }, [favorites, user]);
 
-  // 🔥 ЛОКАЛЬНЕ ЗБЕРЕЖЕННЯ (БЕЗ АВТОМАТИЧНОГО ЗАВАНТАЖЕННЯ В ХМАРУ)
   useEffect(() => {
     localStorage.setItem('myAlertHistory', JSON.stringify(alertHistory));
   }, [alertHistory]);
@@ -248,7 +259,6 @@ function App() {
     localStorage.setItem('myAlerts', JSON.stringify(alerts));
   }, [alerts]);
 
-  // 🔥 ФУНКЦІЇ КЕРУВАННЯ СПОВІЩЕННЯМИ (ЗБЕРІГАЮТЬ В ХМАРУ ЛИШЕ ПРИ КЛІКУ)
   const handleAddAlert = (coinId, targetPrice, type) => {
     const newAlert = { 
       id: Date.now(), 
@@ -262,7 +272,7 @@ function App() {
     const updatedAlerts = [...alerts, newAlert];
     setAlerts(updatedAlerts);
     
-    if (user) {
+    if (user && isOnline) {
       setDoc(doc(db, 'user_favorites', user.uid), { alerts: updatedAlerts }, { merge: true }).catch(e => console.error(e));
     }
 
@@ -275,7 +285,7 @@ function App() {
     const updatedAlerts = alerts.filter(a => a.id !== id);
     setAlerts(updatedAlerts);
     
-    if (user) {
+    if (user && isOnline) {
       setDoc(doc(db, 'user_favorites', user.uid), { alerts: updatedAlerts }, { merge: true }).catch(e => console.error(e));
     }
   };
@@ -284,7 +294,7 @@ function App() {
     const updatedAlerts = alerts.map(a => a.id === id ? { ...a, targetPrice: parseFloat(newPrice) } : a);
     setAlerts(updatedAlerts);
     
-    if (user) {
+    if (user && isOnline) {
       setDoc(doc(db, 'user_favorites', user.uid), { alerts: updatedAlerts }, { merge: true }).catch(e => console.error(e));
     }
   };
@@ -332,18 +342,19 @@ function App() {
       setActiveAlertsQueue(prevQueue => [...prevQueue, ...newlyTriggered]);
       setAlerts(alertsToKeep);
 
-      // 🔥 ЯКЩО СПРАЦЮВАЛО СПОВІЩЕННЯ - ОНОВЛЮЄМО ХМАРУ
-      if (user) {
+      if (user && isOnline) {
         setDoc(doc(db, 'user_favorites', user.uid), { 
           alerts: alertsToKeep,
           alertHistory: newHistory
         }, { merge: true }).catch(e => console.error(e));
       }
     }
-  }, [prices, alerts, alertHistory, language, timezone, currency, curSymbol, user]); 
+  }, [prices, alerts, alertHistory, language, timezone, currency, curSymbol, user, isOnline]); 
 
   useEffect(() => {
    const fetchTop50 = async () => {
+    if (!isOnline) return; // Не робимо запит, якщо офлайн
+
     try {
       const response = await fetch(
         `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=100&page=1&sparkline=false&_t=${Date.now()}`
@@ -401,7 +412,7 @@ function App() {
     fetchTop50();
     const interval = setInterval(fetchTop50, 60000); 
     return () => clearInterval(interval);
-  }, [currency]);
+  }, [currency, isOnline]);
 
   const toggleFavorite = async (coinId) => {
     const isAdding = !favorites.includes(coinId);
@@ -420,7 +431,7 @@ function App() {
 
     setFavorites(newFavorites);
 
-    if (user) {
+    if (user && isOnline) {
       try {
         await setDoc(doc(db, 'user_favorites', user.uid), { coins: newFavorites }, { merge: true });
       } catch (err) {
@@ -527,6 +538,19 @@ function App() {
   return (
     <Router>
       <div className="App">
+        {/* 🔥 ВІДЖЕТ ВІДСУТНОСТІ ІНТЕРНЕТУ */}
+        {!isOnline && (
+          <div style={{
+            position: 'fixed', top: '10px', left: '50%', transform: 'translateX(-50%)',
+            background: '#ff4343', color: '#fff', padding: '10px 20px',
+            borderRadius: '20px', fontWeight: 'bold', zIndex: 999999,
+            boxShadow: '0 5px 15px rgba(255, 67, 67, 0.4)',
+            animation: 'modalOpenAnim 0.3s ease-out forwards'
+          }}>
+            {t.offlineMsg}
+          </div>
+        )}
+
         <nav className="navbar">
           <div className="nav-logo">CRYPTO MONITOR</div>
           
@@ -686,7 +710,16 @@ function App() {
         </nav>
 
         <Routes>
-          <Route path="/" element={<Home coins={coins} />} />
+          <Route path="/" element={
+            <Home 
+              coins={coins} 
+              user={user} 
+              favorites={favorites} 
+              toggleFavorite={toggleFavorite} 
+              handleAddAlert={handleAddAlert} 
+              openAuth={() => setShowAuthModal(true)} 
+            />
+          } />
           
           <Route path="/market" element={
             <>
@@ -853,21 +886,21 @@ function App() {
             setGlobalLang={async (newLang) => {
               setLanguage(newLang);
               addLogEvent(`${t.logLangChanged} ${newLang.toUpperCase()}`, 'blue');
-              if (user) await setDoc(doc(db, 'user_favorites', user.uid), { language: newLang }, { merge: true });
+              if (user && isOnline) await setDoc(doc(db, 'user_favorites', user.uid), { language: newLang }, { merge: true }).catch(e=>console.error(e));
             }}
             
             currentCurrency={currency}
             setGlobalCurrency={async (newCur) => {
               setCurrency(newCur);
               addLogEvent(`${t.logCurChanged} ${newCur.toUpperCase()}`, 'blue');
-              if (user) await setDoc(doc(db, 'user_favorites', user.uid), { currency: newCur }, { merge: true });
+              if (user && isOnline) await setDoc(doc(db, 'user_favorites', user.uid), { currency: newCur }, { merge: true }).catch(e=>console.error(e));
             }}
             
             currentTimezone={timezone}
             setGlobalTimezone={async (newTz) => {
               setTimezone(newTz);
               addLogEvent(t.logTzChanged, 'blue');
-              if (user) await setDoc(doc(db, 'user_favorites', user.uid), { timezone: newTz }, { merge: true });
+              if (user && isOnline) await setDoc(doc(db, 'user_favorites', user.uid), { timezone: newTz }, { merge: true }).catch(e=>console.error(e));
             }}
 
             activityLog={activityLog}

@@ -32,9 +32,11 @@ const translations = {
     proLockTitle: "Доступ обмежено",
     proLockMsg: "Професійні графіки TradingView доступні лише для зареєстрованих користувачів. Будь ласка, увійдіть в акаунт або створіть новий.",
     btnAuth: "Увійти / Зареєструватись",
-    // 🔥 НОВІ ПЕРЕКЛАДИ ДЛЯ БЛОКУ СПОВІЩЕНЬ
     alertLockMsg: "Сповіщення доступні після реєстрації",
-    alertLockDesc: "Отримуйте пуш-повідомлення, коли ціна досягне вашої цілі."
+    alertLockDesc: "Отримуйте пуш-повідомлення, коли ціна досягне вашої цілі.",
+    // 🔥 НОВІ ПОВІДОМЛЕННЯ ПРО ПОМИЛКИ
+    alertErrInvalid: "Ціна має бути більшою за нуль.",
+    alertErrHigh: "Введена ціна занадто велика."
   },
   en: {
     details: "DETAILS", proChart: "📊 Pro Chart", live: "⚡ LIVE (24H)",
@@ -48,9 +50,11 @@ const translations = {
     proLockTitle: "Access Restricted",
     proLockMsg: "Professional TradingView charts are only available to registered users. Please log in or sign up.",
     btnAuth: "Login / Register",
-    // 🔥 НОВІ ПЕРЕКЛАДИ ДЛЯ БЛОКУ СПОВІЩЕНЬ
     alertLockMsg: "Alerts unlock after registration",
-    alertLockDesc: "Get push notifications when the price hits your target."
+    alertLockDesc: "Get push notifications when the price hits your target.",
+    // 🔥 НОВІ ПОВІДОМЛЕННЯ ПРО ПОМИЛКИ
+    alertErrInvalid: "Price must be greater than zero.",
+    alertErrHigh: "The entered price is too high."
   }
 };
 
@@ -100,6 +104,8 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
 
   const [fiatAmount, setFiatAmount] = useState('');
   const [alertPrice, setAlertPrice] = useState(''); 
+  const [alertError, setAlertError] = useState(''); // 🔥 СТАН ДЛЯ ПОМИЛКИ
+  
   const [isLoading, setIsLoading] = useState(true);
   const [chartHistory, setChartHistory] = useState([]);
   
@@ -138,9 +144,10 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
         }
       } catch (error) {
         const now = Date.now();
+        const fallbackPrice = currentPrice > 0 ? currentPrice : 100;
         const fakeData = Array.from({ length: 24 }, (_, i) => [
           now - (23 - i) * 3600000, 
-          currentPrice * (1 + Math.sin(i / 2) * 0.02 + Math.random() * 0.01)
+          fallbackPrice * (1 + Math.sin(i / 2) * 0.02 + Math.random() * 0.01)
         ]);
         setChartHistory(fakeData);
       } finally {
@@ -149,7 +156,8 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
     };
 
     if (coinId) fetchHistory();
-  }, [coinId, data, currentPrice, currencyCode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coinId, currencyCode]);
 
   if (!coinId) return null;
 
@@ -310,6 +318,26 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
     }
   };
 
+  // 🔥 ФУНКЦІЯ ПЕРЕВІРКИ СПОВІЩЕННЯ
+  const handleAlertSubmit = (type) => {
+    const priceVal = parseFloat(alertPrice);
+    
+    if (!alertPrice || isNaN(priceVal) || priceVal <= 0) {
+      setAlertError(t.alertErrInvalid);
+      return;
+    }
+    
+    if (priceVal > 999999999) { // Максимум мільярд
+      setAlertError(t.alertErrHigh);
+      return;
+    }
+    
+    // Якщо все добре
+    if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), priceVal, type);
+    setAlertPrice('');
+    setAlertError('');
+  };
+
   return (
     <>
       <style>
@@ -441,15 +469,16 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
             <div className="calculator-section" style={{ margin: 0 }}>
               <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>{t.calcTitle}</h3>
               <div className="calc-input-group">
+                {/* 🔥 ОНОВЛЕНО: Суворий контроль вводу для калькулятора */}
                 <input 
-                  type="number" 
+                  type="text" 
+                  inputMode="decimal"
                   placeholder={`${t.calcPlaceholder} ${currencyCode.toUpperCase()}`} 
                   value={fiatAmount}
-                  min="0"
-                  onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    if (val >= 0 || val === '') setFiatAmount(val);
+                    let val = e.target.value.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
+                    if ((val.match(/\./g) || []).length > 1) return;
+                    setFiatAmount(val);
                   }}
                 />
                 <span className="currency-label">{currencyCode.toUpperCase()}</span>
@@ -460,10 +489,8 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
               </div>
             </div>
 
-            {/* 🔥 ОНОВЛЕНИЙ БЛОК СПОВІЩЕНЬ З ПЕРЕВІРКОЮ НА USER */}
             <div className="calculator-section" style={{ margin: 0, border: '1px solid #2b3139', background: '#15191e', position: 'relative', overflow: 'hidden' }}>
               
-              {/* Якщо користувач не залогінений - показуємо "замок" поверх блоку */}
               {!user && (
                 <div style={{
                   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -488,28 +515,36 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
                 </div>
               )}
 
-              {/* Сам контент блоку сповіщень (напівпрозорий, якщо гість) */}
               <div style={{ opacity: user ? 1 : 0.3, pointerEvents: user ? 'auto' : 'none' }}>
                 <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>{t.alertTitle}</h3>
+                
                 <div className="calc-input-group">
+                  {/* 🔥 ОНОВЛЕНО: Суворий контроль вводу для сповіщень */}
                   <input 
-                    type="number" 
+                    type="text" 
+                    inputMode="decimal"
                     placeholder={`${t.alertPlaceholder} ${currencySymbol}${(currentPrice * 1.05).toFixed(currentPrice < 1 ? 4 : 0)}...`}
                     value={alertPrice}
-                    min="0"
-                    onChange={(e) => setAlertPrice(e.target.value)}
+                    onChange={(e) => {
+                      setAlertError(''); // Ховаємо помилку при новому вводі
+                      let val = e.target.value.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
+                      if ((val.match(/\./g) || []).length > 1) return;
+                      setAlertPrice(val);
+                    }}
                   />
                   <span className="currency-label">{currencyCode.toUpperCase()}</span>
                 </div>
                 
+                {/* 🔥 ВІДОБРАЖЕННЯ ПОМИЛКИ */}
+                {alertError && (
+                  <div style={{ color: '#ff4343', fontSize: '0.85rem', marginTop: '8px', textAlign: 'center' }}>
+                    {alertError}
+                  </div>
+                )}
+                
                 <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                   <button 
-                    onClick={() => {
-                      if (alertPrice && alertPrice > 0) {
-                        if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), alertPrice, 'up');
-                        setAlertPrice(''); 
-                      }
-                    }}
+                    onClick={() => handleAlertSubmit('up')}
                     style={{ flex: 1, padding: '10px', background: 'rgba(0, 192, 135, 0.1)', color: '#00c087', border: '1px solid #00c087', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
                     onMouseEnter={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.2)'}
                     onMouseLeave={(e) => e.target.style.background = 'rgba(0, 192, 135, 0.1)'}
@@ -517,12 +552,7 @@ const CoinModal = ({ coinId, data, onClose, favorites = [], toggleFavorite, hand
                     {t.btnUp}
                   </button>
                   <button 
-                    onClick={() => {
-                      if (alertPrice && alertPrice > 0) {
-                        if (handleAddAlert) handleAddAlert(coinId.toUpperCase(), alertPrice, 'down');
-                        setAlertPrice(''); 
-                      }
-                    }}
+                    onClick={() => handleAlertSubmit('down')}
                     style={{ flex: 1, padding: '10px', background: 'rgba(255, 67, 67, 0.1)', color: '#ff4343', border: '1px solid #ff4343', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
                     onMouseEnter={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.2)'}
                     onMouseLeave={(e) => e.target.style.background = 'rgba(255, 67, 67, 0.1)'}

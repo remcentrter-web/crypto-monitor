@@ -39,7 +39,8 @@ const currencySymbols = {
   usd: '$', eur: '€', gbp: '£', pln: 'zł', uah: '₴'
 };
 
-function Home({ coins = [] }) {
+// 🔥 ОНОВЛЕНО: приймаємо пропси для CoinModal
+function Home({ coins = [], user, favorites, toggleFavorite, handleAddAlert, openAuth }) {
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'ua');
   const [currency, setCurrency] = useState(localStorage.getItem('app_currency') || 'usd');
   
@@ -243,7 +244,6 @@ function Home({ coins = [] }) {
             )}
           </div>
 
-          {/* 🔥 ПЕРЕДАЄМО ВАЛЮТУ ТА МОВУ У ВЕЛИКИЙ ГРАФІК */}
           {bitcoinData && <BtcChart btcData={bitcoinData} currencySymbol={curSymbol} currencyCode={currency} lang={lang} />}
 
           <div style={{ width: '100%', maxWidth: '1000px', textAlign: 'left', marginBottom: '25px' }}>
@@ -255,12 +255,10 @@ function Home({ coins = [] }) {
           }}>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
               <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{t.marketCap}</h3>
-              {/* 🔥 ДИНАМІЧНА ВАЛЮТА ДЛЯ КАПІТАЛІЗАЦІЇ */}
               <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>{curSymbol}{globalData ? formatNumber(globalData.total_market_cap?.[currency]) : '...'}</p>
             </div>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
               <h3 style={{ color: '#aaa', fontSize: '0.9rem', margin: '0 0 10px 0' }}>{t.volume}</h3>
-              {/* 🔥 ДИНАМІЧНА ВАЛЮТА ДЛЯ ОБСЯГУ */}
               <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>{curSymbol}{globalData ? formatNumber(globalData.total_volume?.[currency]) : '...'}</p>
             </div>
             <div style={{ background: '#1e2329', padding: '20px', borderRadius: '15px', border: '1px solid #2b3139' }}>
@@ -276,11 +274,19 @@ function Home({ coins = [] }) {
           </div>
         </div>
 
+        {/* 🔥 ОНОВЛЕНО: Передаємо всі потрібні пропси в CoinModal */}
         {selectedCoin && (
           <CoinModal 
-            coinId={selectedCoin.id} 
+            coinId={selectedCoin.symbol.toUpperCase()} 
             data={{ id: selectedCoin.id, price: selectedCoin.current_price.toString(), change: selectedCoin.price_change_percentage_24h.toFixed(2).toString(), image: selectedCoin.image, rank: selectedCoin.market_cap_rank, marketCap: selectedCoin.market_cap, volume: selectedCoin.total_volume, high24h: selectedCoin.high_24h, low24h: selectedCoin.low_24h, ath: selectedCoin.ath }}
             onClose={() => setSelectedCoin(null)} 
+            favorites={favorites}
+            toggleFavorite={toggleFavorite}
+            handleAddAlert={handleAddAlert}
+            user={user}
+            currencySymbol={curSymbol}
+            currencyCode={currency}
+            openAuth={openAuth}
           />
         )}
       </div>
