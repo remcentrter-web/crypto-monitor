@@ -73,6 +73,7 @@
   color: black;
   font-weight: bold;
 }
+
 .auth-link-text {
   color: #f7931a;
   font-weight: bold;
@@ -88,8 +89,8 @@
   text-shadow: 0 0 12px rgba(247, 147, 26, 0.7);
   transform: scale(1.05) translateY(-1px);
 }
-/* 🔥 СТИЛІ ДЛЯ ПОШУКУ З ІКОНКАМИ 🔥 */
 
+/* 🔥 СТИЛІ ДЛЯ ПОШУКУ З ІКОНКАМИ 🔥 */
 .search-container {
   position: relative;
   display: flex;
@@ -109,12 +110,12 @@
   position: absolute;
   left: 15px;
   color: #8e9eaf;
-  pointer-events: none; /* Щоб іконка не блокувала клік по інпуту */
+  pointer-events: none; 
 }
 
 .search-input {
   width: 100%;
-  padding: 10px 35px 10px 40px; /* Відступи для лупи зліва і хрестика справа */
+  padding: 10px 35px 10px 40px; 
   background: transparent;
   border: none;
   outline: none;
@@ -122,7 +123,6 @@
   font-size: 1rem;
 }
 
-/* Колір плейсхолдера */
 .search-input::placeholder {
   color: #8e9eaf;
 }
@@ -144,5 +144,96 @@
 }
 
 .search-clear-btn:hover {
-  color: #ff4343; /* При наведенні хрестик стає червоним */
+  color: #ff4343; 
+}
+
+/* ========================================================
+   🔥 МОБІЛЬНА АДАПТАЦІЯ ДЛЯ NAVBAR (Media Queries) 🔥
+   ======================================================== */
+
+/* Планшети і невеликі екрани */
+@media (max-width: 1000px) {
+  .navbar {
+    padding: 15px 20px;
+    flex-wrap: wrap; 
+    gap: 15px;
+  }
+  
+  .navbar > div:nth-child(2) {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: center;
+    order: 3; 
+  }
+  
+  .navbar > div:nth-child(3) {
+    order: 2; 
+    margin: 0;
+  }
+}
+
+/* Смартфони */
+@media (max-width: 650px) {
+  .navbar {
+    padding: 10px 15px; /* Зменшили загальні відступи, щоб не займало пів екрана */
+    justify-content: space-between; 
+  }
+
+  /* 1 ПОВЕРХ: Логотип і профіль */
+  .nav-logo {
+    order: 1;
+    font-size: 17px; /* Трохи менший логотип */
+  }
+  
+  .user-block {
+    order: 2;
+    padding: 5px 10px; /* Компактніша кнопка профілю */
+  }
+  
+  .user-name {
+    display: none; 
+  }
+
+  /* 2 ПОВЕРХ: Кнопки меню */
+  .navbar > div:nth-child(2) {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start; 
+    overflow-x: auto; 
+    padding-top: 10px; /* Даємо місце зверху, щоб кружечок сповіщень не зрізався! */
+    padding-bottom: 5px; 
+    gap: 8px !important; /* Робимо кнопки ближчими одна до одної */
+  }
+  
+  .nav-link-btn {
+    white-space: nowrap; 
+    padding: 6px 12px; /* Робимо самі кнопки "тоншими" */
+    font-size: 0.85rem; /* Зменшуємо шрифт */
+  }
+
+  /* 3 ПОВЕРХ: Пошук */
+  .navbar > div:nth-child(3) {
+    order: 4;
+    width: 100%;
+    margin-top: 5px;
+  }
+
+  .search-container {
+    width: 100%;
+  }
+
+  .search-input {
+    padding: 8px 35px 8px 40px; /* Робимо рядок пошуку трохи вужчим по висоті */
+  }
+
+  .search-container.focused {
+    width: 100%;
+  }
+  
+  .search-container.focused + div,
+  .search-container + div {
+    width: 100% !important; 
+    left: 0 !important;
+    transform: none !important;
+  }
 }

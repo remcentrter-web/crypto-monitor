@@ -21,6 +21,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 25px;
+  padding: 0 15px; /* Додав відступ для телефонів */
 }
 
 /* Стиль самої картки */
@@ -30,8 +31,9 @@
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   width: 260px;
- border-bottom: 5px solid #8a2be2; /* Початкова рамка знизу */
+  border-bottom: 5px solid #8a2be2; /* Початкова рамка знизу */
   transition: transform 0.3s ease;
+  box-sizing: border-box; /* Важливо для мобільної версії */
 }
 
 .crypto-card:hover {
@@ -331,26 +333,6 @@ h2 {
   font-size: 1.8rem;
 }
 
-/* 📱 АДАПТИВНІСТЬ - ПЕРЕТВОРЮЄМО САЙДБАР НА ВЕРХНЮ ПАНЕЛЬ */
-@media (max-width: 1000px) {
-  .favorites-page-container {
-    flex-direction: column;
-  }
-  .favorites-sidebar {
-    width: 100%;
-    min-width: 100%;
-    position: static;
-    margin-bottom: 20px;
-  }
-  .sort-buttons {
-    flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: 10px;
-  }
-  .sort-buttons button {
-    white-space: nowrap;
-  }
-}
 /* Центруємо заголовок ТІЛЬКИ на сторінці обраного */
 .favorites-main .section-title {
   text-align: center;
@@ -360,7 +342,6 @@ h2 {
   display: block;
 }
 /* --- СТИЛІ ДЛЯ КНОПКИ 'РОЗГОРНУТИ ВЕСЬ СПИСОК' --- */
-/* --- СТИЛІ ДЛЯ КНОПКИ 'РОЗГОРНУТИ ВЕСЬ СПИСОК' (ОНОВЛЕНИЙ БАЛАНС) --- */
 .load-more-btn {
   padding: 14px 35px; /* Зробили трохи більшою */
   font-size: 1.1rem; /* Збільшили шрифт */
@@ -393,7 +374,7 @@ h2 {
   animation: noticeablePulse 2.5s infinite; /* Плавно дихає оранжевим кольором */
 }
 
-/* --- АНІМАЦІЯ ПЛАВНОЇ ПОЯВИ КАРТОК (Залишаємо без змін) --- */
+/* --- АНІМАЦІЯ ПЛАВНОЇ ПОЯВИ КАРТОК --- */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -408,4 +389,77 @@ h2 {
 .fade-in-item {
   opacity: 0;
   animation: fadeInUp 0.5s ease-out forwards;
+}
+
+/* ========================================================
+   🔥 МОБІЛЬНА АДАПТАЦІЯ (Media Queries) 🔥
+   ======================================================== */
+
+/* Планшети і маленькі екрани (до 1000px) */
+@media (max-width: 1000px) {
+  /* Перетворюємо сайдбар Обраного на верхню панель */
+  .favorites-page-container {
+    flex-direction: column;
+  }
+  .favorites-sidebar {
+    width: 100%;
+    min-width: 100%;
+    position: static;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+  }
+  .sort-buttons {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  .sort-buttons button {
+    white-space: nowrap;
+  }
+  
+  /* Робимо 3 колонки замість 4 для популярних монет */
+  .popular-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Планшети (до 768px) */
+@media (max-width: 768px) {
+  /* Робимо 2 колонки для популярних монет */
+  .popular-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .crypto-container {
+    padding: 0 10px;
+  }
+}
+
+/* Смартфони (до 500px) */
+@media (max-width: 500px) {
+  /* На телефоні картка розтягується на всю ширину екрана */
+  .crypto-card {
+    width: 100%;
+    max-width: 100%;
+    padding: 20px; /* Трохи менший відступ всередині */
+  }
+
+  /* Для списку Весь ринок робимо 1 колонку на телефоні */
+  .popular-grid {
+    grid-template-columns: 1fr;
+    padding: 0 10px;
+  }
+
+  /* Трохи зменшуємо шрифти на телефоні */
+  .price {
+    font-size: 1.8rem;
+  }
+  
+  .section-title {
+    font-size: 1.2rem;
+  }
+  
+  h1 {
+    font-size: 1.6rem;
+  }
 }
